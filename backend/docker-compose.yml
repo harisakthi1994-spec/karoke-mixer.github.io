@@ -1,0 +1,13 @@
+services:
+  karaoke-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ALLOWED_ORIGINS: "https://harisakthi1994-spec.github.io,http://localhost:8000"
+      PUBLIC_BASE_URL: "http://localhost:8000"
+      DEMUCS_MODEL: "htdemucs"
+      MAX_UPLOAD_MB: "150"
+      DEMUCS_TIMEOUT_SECONDS: "1800"
+    volumes:
+      - ./results:/app/results
