@@ -6,14 +6,14 @@
 <title>Karaoke Mixer</title>
 <style>
   :root {
-    --bg: #0f0f14;
-    --surface: #1a1a24;
-    --surface2: #23232f;
-    --accent: #7c5cbf;
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #667eea;
     --accent2: #c05fa0;
-    --text: #e0dff0;
-    --muted: #7a7890;
-    --border: #2e2e42;
+    --text: #ffffff;
+    --muted: #a0aec0;
+    --border: rgba(102, 126, 234, 0.3);
     --green: #3ecf8e;
     --red: #e05252;
   }
@@ -409,27 +409,25 @@ function drawWaveform() {
 
   const W = canvas.width;
   const H = canvas.height;
-  const data = new Uint8Array(analyser.fftSize);
-  analyser.getByteTimeDomainData(data);
+  const bufLen = analyser.frequencyBinCount;
+  const data = new Uint8Array(bufLen);
+  analyser.getByteFrequencyData(data);
 
   ctx2d.clearRect(0, 0, W, H);
 
-  const grad = ctx2d.createLinearGradient(0, 0, W, 0);
-  grad.addColorStop(0, '#4c6ef5');
-  grad.addColorStop(0.5, '#9c5cbf');
-  grad.addColorStop(1, '#e05252');
-  ctx2d.strokeStyle = grad;
-  ctx2d.lineWidth = 2;
-  ctx2d.shadowColor = '#9c5cbf';
-  ctx2d.shadowBlur = 6;
-
-  ctx2d.beginPath();
-  const step = W / data.length;
-  for (let i = 0; i < data.length; i++) {
-    const y = ((data[i] / 128.0) - 1) * (H / 2) + H / 2;
-    i === 0 ? ctx2d.moveTo(0, y) : ctx2d.lineTo(i * step, y);
+  const barW = W / bufLen * 2.5;
+  for (let i = 0; i < bufLen; i++) {
+    const barH = (data[i] / 255) * H;
+    const t = i / bufLen;
+    // blue → purple → red gradient per bar
+    const r = Math.round(76  + (224 - 76)  * t);
+    const g = Math.round(110 + (82  - 110) * t);
+    const b = Math.round(245 + (82  - 245) * t);
+    ctx2d.fillStyle = `rgb(${r},${g},${b})`;
+    ctx2d.shadowColor = `rgb(${r},${g},${b})`;
+    ctx2d.shadowBlur = 10;
+    ctx2d.fillRect(i * barW, H - barH, barW - 1, barH);
   }
-  ctx2d.stroke();
 
   // Elapsed time
   if (isPlaying && audioCtx) {
@@ -523,14 +521,12 @@ const mixer = document.getElementById('mixer');
 let pipeline = null;
 
 async function loadPipeline() {
-  stemStatus.textContent = 'Loading @huggingface/transformers…';
-  // Dynamic import from CDN
+  stemStatus.textContent = 'Loading Demucs model…';
   const { pipeline: createPipeline, env } = await import(
     'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js'
   );
   env.allowLocalModels = false;
-  stemStatus.textContent = 'Downloading Demucs model (first load may take a moment)…';
-  pipeline = await createPipeline('audio-source-separation', 'Xenova/demucs', {
+  pipeline = await createPipeline('source-separation', 'Xenova/demucs', {
     progress_callback: (p) => {
       if (p.status === 'progress') {
         const pct = Math.round(p.progress ?? 0);
@@ -549,63 +545,79 @@ async function separateStems(audioBuffer) {
   progressWrap.style.display = 'block';
   progressBar.style.width = '5%';
   progressPct.textContent = '5%';
-  stemStatus.textContent = 'Loading separation model…';
+  stemStatus.textContent = 'Loading Demucs model…';
+
+  function enableMixer() {
+    mixer.style.display = 'block';
+    document.getElementById('play-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = false;
+  }
 
   try {
     if (!pipeline) await loadPipeline();
 
-    stemStatus.textContent = 'Separating vocals & instrumental…';
+    stemStatus.textContent = 'Processing audio…';
     progressBar.style.width = '50%';
     progressPct.textContent = '50%';
 
-    // Convert AudioBuffer to Float32Array (mono mix for model input)
     const channelData = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
 
-    const result = await pipeline(channelData, { sampling_rate: sampleRate });
+    // Call separator with raw Float32Array audio data
+    const result = await pipeline(channelData, {
+      sampling_rate: sampleRate,
+      callback_on_progress: (p) => {
+        if (typeof p === 'number') {
+          const pct = Math.round(50 + p * 40);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
+        }
+      }
+    });
 
-    progressBar.style.width = '90%';
-    progressPct.textContent = '90%';
+    progressBar.style.width = '95%';
+    progressPct.textContent = '95%';
     stemStatus.textContent = 'Decoding stems…';
 
-    // result is typically [{label:'vocals', audio: Float32Array}, {label:'accompaniment',...}]
     const ac = getAudioCtx();
-    for (const stem of result) {
-      const buf = ac.createBuffer(1, stem.audio.length, sampleRate);
-      buf.getChannelData(0).set(stem.audio);
+    // result: array of {label, audio} or object with .vocals / .accompaniment
+    const stems = Array.isArray(result) ? result : Object.entries(result).map(([label, audio]) => ({ label, audio }));
+
+    let gotVocal = false, gotInst = false;
+    for (const stem of stems) {
+      const audioData = stem.audio?.data ?? stem.audio;
+      if (!audioData) continue;
+      const buf = ac.createBuffer(1, audioData.length, sampleRate);
+      buf.getChannelData(0).set(audioData);
       const label = (stem.label || '').toLowerCase();
-      if (label.includes('vocal')) vocalBuffer = buf;
-      else instBuffer = buf;
+      if (!gotVocal && (label.includes('vocal') || label === 'other')) {
+        vocalBuffer = buf; gotVocal = true;
+      } else if (!gotInst) {
+        instBuffer = buf; gotInst = true;
+      }
     }
 
-    // Fallback: if model returns only 2 stems without clear labels
-    if (!vocalBuffer && result.length >= 1) {
-      const buf = ac.createBuffer(1, result[0].audio.length, sampleRate);
-      buf.getChannelData(0).set(result[0].audio);
-      vocalBuffer = buf;
-    }
-    if (!instBuffer && result.length >= 2) {
-      const buf = ac.createBuffer(1, result[1].audio.length, sampleRate);
-      buf.getChannelData(0).set(result[1].audio);
-      instBuffer = buf;
+    // If only one stem returned, use it for vocals; keep original for instrumental
+    if (!gotVocal && stems.length >= 1) {
+      const audioData = stems[0].audio?.data ?? stems[0].audio;
+      if (audioData) {
+        const buf = ac.createBuffer(1, audioData.length, sampleRate);
+        buf.getChannelData(0).set(audioData);
+        vocalBuffer = buf;
+      }
     }
 
     progressBar.style.width = '100%';
     progressPct.textContent = '100%';
-    stemStatus.textContent = '✓ Stems ready!';
-
-    mixer.style.display = 'block';
-    document.getElementById('play-btn').disabled = false;
-    document.getElementById('stop-btn').disabled = false;
+    stemStatus.textContent = '✓ Stems separated successfully!';
+    enableMixer();
   } catch (err) {
+    console.error('Stem separation error:', err);
     progressBar.style.width = '100%';
     progressBar.style.background = 'var(--red)';
-    stemStatus.textContent = `⚠ Stem separation failed: ${err.message}. Falling back to original audio.`;
-    console.error('Stem separation error:', err);
-    // Still enable mixer with original buffer as both stems
-    mixer.style.display = 'block';
-    document.getElementById('play-btn').disabled = false;
-    document.getElementById('stop-btn').disabled = false;
+    stemStatus.textContent = `⚠ Demucs unavailable: ${err.message}. Using original audio — mixer is ready.`;
+    // instBuffer already set to original above; vocalBuffer already set to original
+    enableMixer();
   }
 }
 
