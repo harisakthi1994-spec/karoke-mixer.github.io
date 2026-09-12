@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karaoke Mixer</title>
+<style>
+  :root {
+    --bg: #0f0f14;
+    --surface: #1a1a24;
+    --surface2: #23232f;
+    --accent: #7c5cbf;
+    --accent2: #c05fa0;
+    --text: #e0dff0;
+    --muted: #7a7890;
+    --border: #2e2e42;
+    --green: #3ecf8e;
+    --red: #e05252;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.7rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    max-width: 680px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .card h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* File upload */
+  #dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  #dropzone:hover, #dropzone.drag-over {
+    border-color: var(--accent);
+    background: #1f1f2e;
+  }
+  #dropzone .icon { font-size: 2.2rem; margin-bottom: 8px; }
+  #dropzone p { color: var(--muted); font-size: 0.9rem; }
+  #dropzone p span { color: var(--accent); text-decoration: underline; cursor: pointer; }
+  #file-input { display: none; }
+  #file-name {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--green);
+    display: none;
+  }
+
+  /* Waveform */
+  #waveform-wrap { position: relative; margin-top: 14px; }
+  #waveform {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    background: var(--surface2);
+    display: none;
+  }
+  #waveform-time {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Stem separation progress */
+  #stem-progress-wrap { margin-top: 14px; display: none; }
+  #stem-progress-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  #stem-progress-bar-outer {
+    background: var(--surface2);
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+  }
+  #stem-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 999px;
+    transition: width 0.3s;
+  }
+  #stem-status {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 1.2em;
+  }
+
+  /* Audio output device */
+  .select-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .select-row label { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+  select {
+    flex: 1;
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%237a7890' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  select:focus { border-color: var(--accent); }
+  button.icon-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+  }
+  button.icon-btn:hover { border-color: var(--accent); }
+  #bt-status {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  #bt-status.connected { color: var(--green); }
+
+  /* Mixer */
+  #mixer { display: none; }
+  .stem-row {
+    margin-bottom: 18px;
+  }
+  .stem-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .stem-label { font-weight: 600; font-size: 0.95rem; }
+  .stem-label.vocals { color: var(--accent2); }
+  .stem-label.instrumental { color: var(--accent); }
+  .stem-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--surface2);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(124,92,191,0.6);
+  }
+  input[type=range].vocals-range::-webkit-slider-thumb { background: var(--accent2); }
+  .vol-val {
+    font-size: 0.8rem;
+    color: var(--muted);
+    width: 32px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Playback controls */
+  .playback-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  button.play-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 28px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button.play-btn:hover { opacity: 0.85; }
+  button.play-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Pitch / tempo */
+  .param-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .param-item { flex: 1; min-width: 140px; }
+  .param-item label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  .param-item .param-val { font-size: 0.78rem; color: var(--muted); }
+
+  /* Lyrics */
+  #lyrics-area {
+    width: 100%;
+    height: 130px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 12px;
+    font-size: 0.9rem;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+  }
+  #lyrics-area:focus { border-color: var(--accent); }
+  #lyrics-display {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 60px;
+    font-size: 1.05rem;
+    line-height: 1.7;
+    display: none;
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 4px 0 14px; }
+</style>
+</head>
+<body>
+<h1>🎤 Karaoke Mixer</h1>
+
+<!-- File Upload -->
+<div class="card">
+  <h2>Audio Source</h2>
+  <div id="dropzone">
+    <div class="icon">🎵</div>
+    <p>Drop audio file here or <span id="browse-link">browse</span></p>
+    <p style="margin-top:4px;font-size:0.78rem;">MP3, WAV, OGG, FLAC supported</p>
+  </div>
+  <input type="file" id="file-input" accept="audio/*">
+  <div id="file-name"></div>
+
+  <!-- Waveform -->
+  <div id="waveform-wrap">
+    <canvas id="waveform"></canvas>
+    <span id="waveform-time"></span>
+  </div>
+
+  <!-- Stem separation progress -->
+  <div id="stem-progress-wrap">
+    <div id="stem-progress-label">
+      <span>Separating stems with Demucs…</span>
+      <span id="stem-pct">0%</span>
+    </div>
+    <div id="stem-progress-bar-outer">
+      <div id="stem-progress-bar"></div>
+    </div>
+    <div id="stem-status">Initialising model…</div>
+  </div>
+</div>
+
+<!-- Audio Output Device -->
+<div class="card">
+  <h2>Audio Output Device</h2>
+  <div class="select-row">
+    <label for="output-device">Device</label>
+    <select id="output-device"><option value="">Default</option></select>
+    <button class="icon-btn" id="refresh-devices" title="Refresh devices">⟳</button>
+  </div>
+  <div id="bt-status"></div>
+</div>
+
+<!-- Mixer (shown after stem separation) -->
+<div class="card" id="mixer">
+  <h2>Stem Mixer</h2>
+
+  <div class="stem-row">
+    <div class="stem-header">
+      <span class="stem-label vocals">🎙 Vocals</span>
+    </div>
+    <div class="stem-controls">
+      <input type="range" class="vocals-range" id="vocals-vol" min="0" max="100" value="100">
+      <span class="vol-val" id="vocals-vol-val">100</span>
+    </div>
+  </div>
+
+  <div class="stem-row">
+    <div class="stem-header">
+      <span class="stem-label instrumental">🎸 Instrumental</span>
+    </div>
+    <div class="stem-controls">
+      <input type="range" id="inst-vol" min="0" max="100" value="100">
+      <span class="vol-val" id="inst-vol-val">100</span>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="param-row">
+    <div class="param-item">
+      <label>Pitch <span class="param-val" id="pitch-val">0 st</span></label>
+      <input type="range" id="pitch" min="-12" max="12" value="0" step="1">
+    </div>
+    <div class="param-item">
+      <label>Tempo <span class="param-val" id="tempo-val">1.0×</span></label>
+      <input type="range" id="tempo" min="0.5" max="2.0" value="1.0" step="0.05">
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="playback-row">
+    <button class="play-btn" id="play-btn" disabled>▶ Play</button>
+    <button class="icon-btn" id="stop-btn" disabled>■ Stop</button>
+  </div>
+</div>
+
+<!-- Lyrics -->
+<div class="card">
+  <h2>Lyrics</h2>
+  <textarea id="lyrics-area" placeholder="Paste or type lyrics here…"></textarea>
+  <div id="lyrics-display"></div>
+</div>
+
+<script>
+// ─── Audio Context ────────────────────────────────────────────────────────────
+let audioCtx = null;
+let analyser = null;
+let animFrame = null;
+
+// Stem buffers & nodes
+let vocalBuffer = null;
+let instBuffer = null;
+let vocalSource = null;
+let instSource = null;
+let vocalGain = null;
+let instGain = null;
+let isPlaying = false;
+let startTime = 0;
+let pauseOffset = 0;
+let selectedOutputDeviceId = '';
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.connect(audioCtx.destination);
+  }
+  return audioCtx;
+}
+
+// ─── Waveform Visualiser ─────────────────────────────────────────────────────
+const canvas = document.getElementById('waveform');
+const ctx2d = canvas.getContext('2d');
+const waveTime = document.getElementById('waveform-time');
+
+function drawWaveform() {
+  if (!analyser) return;
+  animFrame = requestAnimationFrame(drawWaveform);
+
+  const W = canvas.width;
+  const H = canvas.height;
+  const data = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(data);
+
+  ctx2d.clearRect(0, 0, W, H);
+
+  const grad = ctx2d.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, '#4c6ef5');
+  grad.addColorStop(0.5, '#9c5cbf');
+  grad.addColorStop(1, '#e05252');
+  ctx2d.strokeStyle = grad;
+  ctx2d.lineWidth = 2;
+  ctx2d.shadowColor = '#9c5cbf';
+  ctx2d.shadowBlur = 6;
+
+  ctx2d.beginPath();
+  const step = W / data.length;
+  for (let i = 0; i < data.length; i++) {
+    const y = ((data[i] / 128.0) - 1) * (H / 2) + H / 2;
+    i === 0 ? ctx2d.moveTo(0, y) : ctx2d.lineTo(i * step, y);
+  }
+  ctx2d.stroke();
+
+  // Elapsed time
+  if (isPlaying && audioCtx) {
+    const elapsed = audioCtx.currentTime - startTime + pauseOffset;
+    waveTime.textContent = formatTime(elapsed);
+  }
+}
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.clientWidth || 640;
+  canvas.height = 120;
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+// ─── Device Enumeration ───────────────────────────────────────────────────────
+const outputSelect = document.getElementById('output-device');
+const btStatus = document.getElementById('bt-status');
+
+async function refreshDevices() {
+  try {
+    // Request permission (needed on some browsers to get labels)
+    if (navigator.mediaDevices.getUserMedia) {
+      await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
+    }
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const outputs = devices.filter(d => d.kind === 'audiooutput');
+
+    outputSelect.innerHTML = '<option value="">Default</option>';
+    let btFound = false;
+    outputs.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      const isBt = /bluetooth|bt|wireless|airpods|buds|headset/i.test(d.label);
+      opt.textContent = (isBt ? '📶 ' : '🔊 ') + (d.label || `Output ${d.deviceId.slice(0,6)}`);
+      if (isBt) btFound = true;
+      outputSelect.appendChild(opt);
+    });
+
+    if (selectedOutputDeviceId) {
+      outputSelect.value = selectedOutputDeviceId;
+    }
+
+    if (btFound) {
+      btStatus.textContent = 'Bluetooth device detected. Select it above.';
+      btStatus.className = 'connected';
+    } else {
+      btStatus.textContent = outputs.length > 1 ? `${outputs.length} output(s) found.` : 'No additional output devices found.';
+      btStatus.className = '';
+    }
+  } catch (e) {
+    btStatus.textContent = 'Device enumeration not supported in this browser.';
+  }
+}
+
+outputSelect.addEventListener('change', async () => {
+  selectedOutputDeviceId = outputSelect.value;
+  // setSinkId is supported in Chrome/Edge
+  const audioEl = document.getElementById('_sink_tester');
+  if (audioEl && audioEl.setSinkId) {
+    try {
+      await audioEl.setSinkId(selectedOutputDeviceId || '');
+      btStatus.textContent = `✓ Output switched.`;
+      btStatus.className = 'connected';
+    } catch (e) {
+      btStatus.textContent = `Could not switch output: ${e.message}`;
+      btStatus.className = '';
+    }
+  } else {
+    btStatus.textContent = selectedOutputDeviceId
+      ? 'Device selected. Note: setSinkId not supported in this browser; routing may be system-level.'
+      : 'Using default output.';
+  }
+});
+
+document.getElementById('refresh-devices').addEventListener('click', refreshDevices);
+navigator.mediaDevices?.addEventListener?.('devicechange', refreshDevices);
+
+// ─── Stem Separation via @huggingface/transformers ────────────────────────────
+const progressWrap = document.getElementById('stem-progress-wrap');
+const progressBar = document.getElementById('stem-progress-bar');
+const progressPct = document.getElementById('stem-pct');
+const stemStatus = document.getElementById('stem-status');
+const mixer = document.getElementById('mixer');
+
+let pipeline = null;
+
+async function loadPipeline() {
+  stemStatus.textContent = 'Loading @huggingface/transformers…';
+  // Dynamic import from CDN
+  const { pipeline: createPipeline, env } = await import(
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js'
+  );
+  env.allowLocalModels = false;
+  stemStatus.textContent = 'Downloading Demucs model (first load may take a moment)…';
+  pipeline = await createPipeline('audio-source-separation', 'Xenova/demucs', {
+    progress_callback: (p) => {
+      if (p.status === 'progress') {
+        const pct = Math.round(p.progress ?? 0);
+        progressBar.style.width = pct + '%';
+        progressPct.textContent = pct + '%';
+        stemStatus.textContent = `Downloading: ${p.file ?? ''} ${pct}%`;
+      } else if (p.status === 'done') {
+        stemStatus.textContent = 'Model ready.';
+      }
+    }
+  });
+  return pipeline;
+}
+
+async function separateStems(audioBuffer) {
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '5%';
+  progressPct.textContent = '5%';
+  stemStatus.textContent = 'Loading separation model…';
+
+  try {
+    if (!pipeline) await loadPipeline();
+
+    stemStatus.textContent = 'Separating vocals & instrumental…';
+    progressBar.style.width = '50%';
+    progressPct.textContent = '50%';
+
+    // Convert AudioBuffer to Float32Array (mono mix for model input)
+    const channelData = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+
+    const result = await pipeline(channelData, { sampling_rate: sampleRate });
+
+    progressBar.style.width = '90%';
+    progressPct.textContent = '90%';
+    stemStatus.textContent = 'Decoding stems…';
+
+    // result is typically [{label:'vocals', audio: Float32Array}, {label:'accompaniment',...}]
+    const ac = getAudioCtx();
+    for (const stem of result) {
+      const buf = ac.createBuffer(1, stem.audio.length, sampleRate);
+      buf.getChannelData(0).set(stem.audio);
+      const label = (stem.label || '').toLowerCase();
+      if (label.includes('vocal')) vocalBuffer = buf;
+      else instBuffer = buf;
+    }
+
+    // Fallback: if model returns only 2 stems without clear labels
+    if (!vocalBuffer && result.length >= 1) {
+      const buf = ac.createBuffer(1, result[0].audio.length, sampleRate);
+      buf.getChannelData(0).set(result[0].audio);
+      vocalBuffer = buf;
+    }
+    if (!instBuffer && result.length >= 2) {
+      const buf = ac.createBuffer(1, result[1].audio.length, sampleRate);
+      buf.getChannelData(0).set(result[1].audio);
+      instBuffer = buf;
+    }
+
+    progressBar.style.width = '100%';
+    progressPct.textContent = '100%';
+    stemStatus.textContent = '✓ Stems ready!';
+
+    mixer.style.display = 'block';
+    document.getElementById('play-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = false;
+  } catch (err) {
+    progressBar.style.width = '100%';
+    progressBar.style.background = 'var(--red)';
+    stemStatus.textContent = `⚠ Stem separation failed: ${err.message}. Falling back to original audio.`;
+    console.error('Stem separation error:', err);
+    // Still enable mixer with original buffer as both stems
+    mixer.style.display = 'block';
+    document.getElementById('play-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = false;
+  }
+}
+
+// ─── File Upload ──────────────────────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const fileNameEl = document.getElementById('file-name');
+
+document.getElementById('browse-link').addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('click', () => fileInput.click());
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+async function processFile(file) {
+  fileNameEl.textContent = '📄 ' + file.name;
+  fileNameEl.style.display = 'block';
+
+  // Show waveform canvas
+  canvas.style.display = 'block';
+  resizeCanvas();
+
+  const ac = getAudioCtx();
+
+  // Read & decode
+  const arrayBuffer = await file.arrayBuffer();
+  const audioBuffer = await ac.decodeAudioData(arrayBuffer.slice(0));
+
+  // Start waveform animation (will draw flat until playback)
+  drawWaveform();
+
+  // Store original as fallback for both stems
+  vocalBuffer = audioBuffer;
+  instBuffer = audioBuffer;
+
+  // Kick off separation
+  await separateStems(audioBuffer);
+}
+
+// ─── Playback ─────────────────────────────────────────────────────────────────
+const playBtn = document.getElementById('play-btn');
+const stopBtn = document.getElementById('stop-btn');
+
+function connectStem(buffer, gainNode) {
+  const ac = getAudioCtx();
+  const src = ac.createBufferSource();
+  src.buffer = buffer;
+  src.connect(gainNode);
+  gainNode.connect(analyser);
+  return src;
+}
+
+function stopPlayback() {
+  if (vocalSource) { try { vocalSource.stop(); } catch(_){} vocalSource = null; }
+  if (instSource)  { try { instSource.stop();  } catch(_){} instSource  = null; }
+  isPlaying = false;
+  playBtn.textContent = '▶ Play';
+  cancelAnimationFrame(animFrame);
+}
+
+playBtn.addEventListener('click', async () => {
+  const ac = getAudioCtx();
+  if (ac.state === 'suspended') await ac.resume();
+
+  if (isPlaying) {
+    // Pause
+    pauseOffset += ac.currentTime - startTime;
+    stopPlayback();
+    return;
+  }
+
+  stopPlayback();
+
+  vocalGain = vocalGain || ac.createGain();
+  instGain  = instGain  || ac.createGain();
+
+  vocalGain.gain.value = parseInt(document.getElementById('vocals-vol').value) / 100;
+  instGain.gain.value  = parseInt(document.getElementById('inst-vol').value)   / 100;
+
+  if (vocalBuffer) {
+    vocalSource = connectStem(vocalBuffer, vocalGain);
+    vocalSource.start(0, pauseOffset);
+    vocalSource.onended = () => { if (isPlaying) stopPlayback(); };
+  }
+  if (instBuffer && instBuffer !== vocalBuffer) {
+    instSource = connectStem(instBuffer, instGain);
+    instSource.start(0, pauseOffset);
+  }
+
+  startTime = ac.currentTime;
+  isPlaying = true;
+  playBtn.textContent = '⏸ Pause';
+  drawWaveform();
+});
+
+stopBtn.addEventListener('click', () => {
+  pauseOffset = 0;
+  stopPlayback();
+});
+
+// ─── Mixer Controls ───────────────────────────────────────────────────────────
+function linkVolume(sliderId, valId, gainRef) {
+  const slider = document.getElementById(sliderId);
+  const valEl  = document.getElementById(valId);
+  slider.addEventListener('input', () => {
+    valEl.textContent = slider.value;
+    const g = gainRef();
+    if (g) g.gain.value = parseInt(slider.value) / 100;
+  });
+}
+linkVolume('vocals-vol', 'vocals-vol-val', () => vocalGain);
+linkVolume('inst-vol',   'inst-vol-val',   () => instGain);
+
+document.getElementById('pitch').addEventListener('input', function() {
+  document.getElementById('pitch-val').textContent = this.value + ' st';
+  if (vocalSource) vocalSource.detune.value = parseFloat(this.value) * 100;
+  if (instSource)  instSource.detune.value  = parseFloat(this.value) * 100;
+});
+
+document.getElementById('tempo').addEventListener('input', function() {
+  const v = parseFloat(this.value).toFixed(2);
+  document.getElementById('tempo-val').textContent = v + '×';
+  if (vocalSource) vocalSource.playbackRate.value = parseFloat(v);
+  if (instSource)  instSource.playbackRate.value  = parseFloat(v);
+});
+
+// ─── Lyrics ───────────────────────────────────────────────────────────────────
+document.getElementById('lyrics-area').addEventListener('input', function() {
+  const display = document.getElementById('lyrics-display');
+  display.textContent = this.value;
+  display.style.display = this.value.trim() ? 'block' : 'none';
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', resizeCanvas);
+refreshDevices();
+</script>
+<!-- Hidden audio element used for setSinkId device routing -->
+<audio id="_sink_tester" style="display:none"></audio>
+</body>
+</html>
