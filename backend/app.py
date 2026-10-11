@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -25,6 +25,8 @@ log = logging.getLogger("uvicorn.error")
 APP_ROOT = Path(__file__).resolve().parent
 RESULTS_ROOT = Path(os.getenv("RESULTS_ROOT", APP_ROOT / "results"))
 RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
+CACHE_ROOT = RESULTS_ROOT / "cache"
+CACHE_ROOT.mkdir(parents=True, exist_ok=True)
 
 # Comma-separated browser origins. Use * only for local testing.
 ALLOWED_ORIGINS = [
@@ -52,9 +54,12 @@ MAX_CONCURRENT_JOBS = max(1, int(os.getenv("MAX_CONCURRENT_JOBS", "1")))
 MAX_QUEUED_JOBS = max(0, int(os.getenv("MAX_QUEUED_JOBS", "5")))
 RATE_LIMIT_PER_HOUR = int(os.getenv("RATE_LIMIT_PER_HOUR", "10"))  # 0 disables
 RESULTS_TTL_MINUTES = int(os.getenv("RESULTS_TTL_MINUTES", "120"))
+CACHE_TTL_DAYS = int(os.getenv("CACHE_TTL_DAYS", "30"))
+CACHE_MAX_GB = float(os.getenv("CACHE_MAX_GB", "5"))
 
 ALLOWED_SUFFIXES = {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac"}
 JOB_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 STEM_RE = re.compile(r"^(vocals|instrumental)\.(mp3|wav)$")
 PROGRESS_RE = re.compile(r"(\d{1,3})%\|")
 MEDIA_TYPES = {".mp3": "audio/mpeg", ".wav": "audio/wav"}
@@ -182,15 +187,31 @@ def run_demucs(job_id: str, input_path: Path, output_dir: Path) -> tuple[Path, P
     return vocals, instrumental
 
 
-def process_job(job_id: str, job_dir: Path, input_path: Path) -> None:
+def save_to_cache(sha256: str, vocals_path: Path, instrumental_path: Path) -> None:
+    cache_dir = CACHE_ROOT / sha256
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(vocals_path, cache_dir / vocals_path.name)
+        shutil.copy2(instrumental_path, cache_dir / instrumental_path.name)
+        cache_dir.touch()
+    except Exception:
+        log.exception("Failed to save stems to cache for %s", sha256)
+        shutil.rmtree(cache_dir, ignore_errors=True)
+
+
+def process_job(job_id: str, job_dir: Path, input_path: Path, sha256: str | None = None) -> None:
     work_dir = job_dir / "work"
     try:
         set_job(job_id, status="processing", stage="separating", progress=10)
         vocals, instrumental = run_demucs(job_id, input_path, work_dir / "separated")
         ext = vocals.suffix
-        shutil.copy2(vocals, job_dir / f"vocals{ext}")
-        shutil.copy2(instrumental, job_dir / f"instrumental{ext}")
+        dest_vocals = job_dir / f"vocals{ext}"
+        dest_inst = job_dir / f"instrumental{ext}"
+        shutil.copy2(vocals, dest_vocals)
+        shutil.copy2(instrumental, dest_inst)
         shutil.rmtree(work_dir, ignore_errors=True)
+        if sha256:
+            save_to_cache(sha256, dest_vocals, dest_inst)
         set_job(job_id, status="done", stage="done", progress=100, format=ext.lstrip("."))
     except Exception as exc:  # noqa: BLE001 - report any failure to the client
         log.exception("Job %s failed", job_id)
@@ -227,7 +248,7 @@ def cleanup_stale_results() -> None:
     with JOBS_LOCK:
         busy = {jid for jid, j in JOBS.items() if j["status"] in {"queued", "processing"}}
     for entry in RESULTS_ROOT.iterdir():
-        if not entry.is_dir() or entry.name in busy:
+        if not entry.is_dir() or entry.name in busy or entry.name == "cache":
             continue
         try:
             if entry.stat().st_mtime < cutoff:
@@ -238,10 +259,39 @@ def cleanup_stale_results() -> None:
             continue
 
 
+def cleanup_cache() -> None:
+    if not CACHE_ROOT.exists():
+        return
+    cutoff = time.time() - CACHE_TTL_DAYS * 86400
+    max_bytes = int(CACHE_MAX_GB * 1024 ** 3)
+    entries = []
+    for entry in CACHE_ROOT.iterdir():
+        if not entry.is_dir():
+            continue
+        try:
+            stat = entry.stat()
+            if stat.st_mtime < cutoff:
+                shutil.rmtree(entry, ignore_errors=True)
+                continue
+            size = sum(f.stat().st_size for f in entry.iterdir() if f.is_file())
+            entries.append((stat.st_mtime, size, entry))
+        except OSError:
+            continue
+    # oldest-first eviction to stay under CACHE_MAX_GB
+    entries.sort()
+    total = sum(s for _, s, _ in entries)
+    for _mtime, size, entry in entries:
+        if total <= max_bytes:
+            break
+        shutil.rmtree(entry, ignore_errors=True)
+        total -= size
+
+
 async def cleanup_loop() -> None:
     while True:
         try:
             await asyncio.to_thread(cleanup_stale_results)
+            await asyncio.to_thread(cleanup_cache)
         except Exception:  # noqa: BLE001
             log.exception("Result cleanup failed")
         await asyncio.sleep(600)
@@ -251,7 +301,7 @@ async def cleanup_loop() -> None:
 async def lifespan(_: FastAPI):
     # Anything left without final stems is debris from an interrupted job.
     for entry in RESULTS_ROOT.iterdir():
-        if entry.is_dir() and not find_stems(entry):
+        if entry.is_dir() and entry.name != "cache" and not find_stems(entry):
             shutil.rmtree(entry, ignore_errors=True)
     task = asyncio.create_task(cleanup_loop())
     try:
@@ -306,11 +356,52 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/api/cache/{sha256}")
+def cache_lookup(sha256: str) -> dict[str, Any]:
+    if not SHA256_RE.match(sha256):
+        raise HTTPException(status_code=400, detail="Invalid sha256")
+    cache_dir = CACHE_ROOT / sha256
+    stems = find_stems(cache_dir)
+    if "vocals" not in stems or "instrumental" not in stems:
+        return {"hit": False, "job_id": None, "vocals": None, "instrumental": None}
+    try:
+        cache_dir.touch()  # refresh mtime so LRU eviction keeps hot entries
+    except OSError:
+        pass
+    ext = stems["vocals"].suffix.lstrip(".")
+    return {
+        "hit": True,
+        "job_id": sha256,
+        "vocals": build_url(f"/api/cache/{sha256}/vocals.{ext}"),
+        "instrumental": build_url(f"/api/cache/{sha256}/instrumental.{ext}"),
+    }
+
+
+@app.get("/api/cache/{sha256}/{stem_name}")
+def cache_file(sha256: str, stem_name: str):
+    if not SHA256_RE.match(sha256) or not STEM_RE.match(stem_name):
+        raise HTTPException(status_code=404, detail="Unknown stem")
+    path = CACHE_ROOT / sha256 / stem_name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Stem not found")
+    try:
+        (CACHE_ROOT / sha256).touch()
+    except OSError:
+        pass
+    return FileResponse(
+        path,
+        media_type=MEDIA_TYPES[path.suffix],
+        filename=stem_name,
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
+
+
 @app.post("/api/separate", status_code=202)
 async def separate(
     request: Request,
     audio: UploadFile | None = File(None),
     file: UploadFile | None = File(None),  # accepted for older clients/docs
+    sha256: str | None = Form(None),
 ) -> dict[str, Any]:
     upload = audio or file
     if upload is None or not upload.filename:
@@ -327,6 +418,10 @@ async def separate(
             status_code=503, detail="Separation queue is full. Please try again in a few minutes."
         )
     check_rate_limit(client_ip(request))
+
+    # Silently discard an invalid sha256 rather than failing the upload.
+    if sha256 is not None and not SHA256_RE.match(sha256):
+        sha256 = None
 
     job_id = uuid.uuid4().hex
     job_dir = RESULTS_ROOT / job_id
@@ -365,7 +460,7 @@ async def separate(
             "created_at": now,
             "updated_at": now,
         }
-    EXECUTOR.submit(process_job, job_id, job_dir, input_path)
+    EXECUTOR.submit(process_job, job_id, job_dir, input_path, sha256)
 
     return {
         "job_id": job_id,

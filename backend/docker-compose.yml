@@ -16,6 +16,8 @@ services:
       MAX_QUEUED_JOBS: ${MAX_QUEUED_JOBS:-5}
       RATE_LIMIT_PER_HOUR: ${RATE_LIMIT_PER_HOUR:-10}
       RESULTS_TTL_MINUTES: ${RESULTS_TTL_MINUTES:-120}
+      CACHE_TTL_DAYS: ${CACHE_TTL_DAYS:-30}
+      CACHE_MAX_GB: ${CACHE_MAX_GB:-5}
       # Keep the downloaded Demucs weights across rebuilds/restarts.
       TORCH_HOME: /app/cache/torch
     volumes:
