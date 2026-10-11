@@ -12,7 +12,7 @@
 .select-row{display:flex;gap:10px;align-items:center}.select-row label{font-size:.85rem;color:var(--muted)}select{flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px}button{cursor:pointer}.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:1rem}.icon-btn:hover{border-color:var(--accent)}#bt-status{font-size:.78rem;color:var(--muted);margin-top:6px}
 #mixer{display:none}.stem-row{margin-bottom:18px}.stem-row.disabled{opacity:.45}.stem-label{font-weight:600}.stem-label.vocals{color:var(--accent2)}.stem-label.instrumental{color:var(--accent)}.stem-controls{display:flex;align-items:center;gap:12px;margin-top:8px}input[type=range]{appearance:none;flex:1;height:5px;border-radius:999px;background:var(--surface2)}input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent)}input[type=range].vocals-range::-webkit-slider-thumb{background:var(--accent2)}input[type=range]:disabled{cursor:not-allowed}.vol-val{width:32px;text-align:right;color:var(--muted);font-size:.8rem}.divider{border:0;border-top:1px solid var(--border);margin:4px 0 14px}.param-row{display:flex;gap:18px;flex-wrap:wrap}.param-item{flex:1;min-width:140px}.param-item label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}.param-val{font-size:.78rem}.hint{font-size:.74rem;color:var(--muted);margin:10px 0 14px}.playback-row{display:flex;gap:10px}.play-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:999px;padding:10px 28px;font-weight:600}.play-btn:disabled{opacity:.35;cursor:not-allowed}
 #lyrics-area{width:100%;height:130px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;resize:vertical;font-family:inherit}#lyrics-display{background:var(--surface2);border-radius:8px;padding:14px;margin-top:10px;display:none;line-height:1.7}
-#refresh-devices{margin-left:auto}.toggle-row{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;cursor:pointer}.toggle-row input{accent-color:var(--accent);width:16px;height:16px}.toggle-row.disabled{opacity:.5;cursor:not-allowed}#split-note{margin:6px 0 0}#split-panel{display:none;margin-top:14px}.split-item{margin-bottom:16px}.split-item .title{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px}.split-item select{width:100%}.delay-row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.78rem;color:var(--muted)}.delay-row input{flex:1}.delay-row .vol-val{width:52px}
+#refresh-devices{margin-left:auto}.toggle-row{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;cursor:pointer}.toggle-row input{accent-color:var(--accent);width:16px;height:16px}.toggle-row.disabled{opacity:.5;cursor:not-allowed}#split-note{margin:6px 0 0}#split-panel{display:none;margin-top:14px}.split-item{margin-bottom:16px}.split-item .title{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px}.split-item select{width:100%}.delay-row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.78rem;color:var(--muted)}.delay-row input{flex:1}.delay-row .vol-val{width:52px}.adj-btn{padding:4px 8px;font-size:.85rem;min-width:28px}#sync-test-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(102,126,234,.15)}
 .lib-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer}.lib-item:last-child{border-bottom:0}.lib-item:hover .lib-name{color:var(--accent)}.lib-name{flex:1;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lib-meta{font-size:.75rem;color:var(--muted);white-space:nowrap}.lib-del{background:none;border:none;color:var(--muted);font-size:1rem;padding:4px 6px;cursor:pointer;line-height:1;border-radius:6px}.lib-del:hover{color:var(--red);background:rgba(224,82,82,.1)}
 </style>
 <script>window.SEPARATION_API_URL='https://karaoke-api.tradeiq.qd.je/api/separate';</script>
@@ -23,9 +23,9 @@
 <div class="card"><h2>Audio Output Device</h2><div class="select-row"><label id="single-label">Device</label><select id="output-device"><option value="">Default</option></select><button class="icon-btn" id="refresh-devices" title="Refresh and show device names">⟳</button></div>
 <label class="toggle-row disabled" id="split-toggle-row"><input type="checkbox" id="split-toggle" disabled><span>Split outputs: route each output independently</span></label><p class="hint" id="split-note"></p>
 <div id="split-panel">
-<div class="split-item"><span class="title">🎸 Output A (e.g. room speaker)</span><select id="output-a"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-a" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-a-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-a-v" min="0" max="100" value="0"><span class="vol-val" id="vol-a-v-val">0</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-a-i" min="0" max="100" value="100"><span class="vol-val" id="vol-a-i-val">100</span></div></div>
-<div class="split-item"><span class="title">🎙 Output B (e.g. singer's headphones)</span><select id="output-b"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-b" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-b-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-b-v" min="0" max="100" value="100"><span class="vol-val" id="vol-b-v-val">100</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-b-i" min="0" max="100" value="100"><span class="vol-val" id="vol-b-i-val">100</span></div></div>
-<p class="hint">Bluetooth adds roughly 150–300 ms of latency. If the two outputs sound out of sync, add delay to the non-Bluetooth output until they line up.</p>
+<div class="split-item"><span class="title">🎸 Output A (e.g. room speaker)</span><select id="output-a"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><button class="icon-btn adj-btn" id="delay-a-minus">−</button><input type="range" id="delay-a" min="0" max="800" step="5" value="0"><button class="icon-btn adj-btn" id="delay-a-plus">+</button><span class="vol-val" id="delay-a-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-a-v" min="0" max="100" value="0"><span class="vol-val" id="vol-a-v-val">0</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-a-i" min="0" max="100" value="100"><span class="vol-val" id="vol-a-i-val">100</span></div></div>
+<div class="split-item"><span class="title">🎙 Output B (e.g. singer's headphones)</span><select id="output-b"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><button class="icon-btn adj-btn" id="delay-b-minus">−</button><input type="range" id="delay-b" min="0" max="800" step="5" value="0"><button class="icon-btn adj-btn" id="delay-b-plus">+</button><span class="vol-val" id="delay-b-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-b-v" min="0" max="100" value="100"><span class="vol-val" id="vol-b-v-val">100</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-b-i" min="0" max="100" value="100"><span class="vol-val" id="vol-b-i-val">100</span></div></div>
+<p class="hint">Bluetooth adds roughly 150–300 ms of latency. If the two outputs sound out of sync, add delay to the non-Bluetooth output until they line up.</p><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px"><button id="sync-test-btn" class="icon-btn" style="font-size:.82rem;white-space:nowrap">🔊 Sync test</button><span class="hint" style="margin:0;flex:1">Delay the faster output (usually the wired speaker) until the clicks sound like one.</span></div>
 </div>
 <div id="bt-status"></div></div>
 <div class="card" id="library-card" style="display:none"><h2>Available Songs</h2><div id="library-list"></div></div>
@@ -89,14 +89,13 @@ function routeAudio(){
   if(!audioCtx)return;
   [vocalGain,instGain,mixBus,analyser,delayA,delayB,silentOut,gainAV,gainAI,gainBV,gainBI].forEach(n=>{try{if(n)n.disconnect()}catch(_){}});
   vocalGain.connect(mixBus);instGain.connect(mixBus);mixBus.connect(analyser);
+  delayA.connect(destA);delayB.connect(destB);
   if(splitOn){
     analyser.connect(silentOut);silentOut.connect(audioCtx.destination);
     vocalGain.connect(gainAV);gainAV.connect(delayA);
     instGain.connect(gainAI);gainAI.connect(delayA);
-    delayA.connect(destA);
     vocalGain.connect(gainBV);gainBV.connect(delayB);
     instGain.connect(gainBI);gainBI.connect(delayB);
-    delayB.connect(destB);
   }else{
     analyser.connect(audioCtx.destination);
   }
@@ -347,6 +346,7 @@ function stopPlayback(){
 function applyRate(src){src.detune.value=(+$('pitch').value)*100;src.playbackRate.value=+$('tempo').value}
 playBtn.addEventListener('click',async()=>{
   const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
+  stopSyncTest();
   if(!vocalBuffer&&!instBuffer)return;
   if(splitOn)await startSplitElements();
   if(isPlaying){pauseOffset=currentPos();stopPlayback();return}
@@ -445,11 +445,30 @@ function updateSplitAvailability(){
   if(!ok&&splitOn)setSplit(false);
 }
 $('split-toggle').addEventListener('change',e=>setSplit(e.target.checked));
-$('output-a').addEventListener('change',async e=>{outAId=e.target.value;if(elA){try{await elA.setSinkId(outAId||'')}catch(x){btStatus.textContent=x.message}}warnSameDevice()});
-$('output-b').addEventListener('change',async e=>{outBId=e.target.value;if(elB){try{await elB.setSinkId(outBId||'')}catch(x){btStatus.textContent=x.message}}warnSameDevice()});
+$('output-a').addEventListener('change',async e=>{outAId=e.target.value;if(elA){try{await elA.setSinkId(outAId||'')}catch(x){btStatus.textContent=x.message}}warnSameDevice();restoreDelay('delay-a','delay-a-val',()=>delayA,outAId)});
+$('output-b').addEventListener('change',async e=>{outBId=e.target.value;if(elB){try{await elB.setSinkId(outBId||'')}catch(x){btStatus.textContent=x.message}}warnSameDevice();restoreDelay('delay-b','delay-b-val',()=>delayB,outBId)});
+function saveDelay(id,val){const devId=id==='delay-a'?outAId:outBId;if(devId)try{localStorage.setItem('delay:'+devId,String(val))}catch(_){}}
+function restoreDelay(id,vid,get,devId){if(!devId)return;try{const saved=localStorage.getItem('delay:'+devId);if(saved!==null){const v=Math.max(0,Math.min(800,+saved));$(id).value=v;$(vid).textContent=v+' ms';const d=get();if(d)d.delayTime.value=v/1000}}catch(_){}}
+function adjustDelay(id,vid,get,delta){const s=$(id);const v=Math.max(0,Math.min(800,+s.value+delta));s.value=v;$(vid).textContent=v+' ms';const d=get();if(d)d.delayTime.value=v/1000;saveDelay(id,v)}
 [['delay-a','delay-a-val',()=>delayA],['delay-b','delay-b-val',()=>delayB]].forEach(([id,vid,get])=>{
   const s=$(id);
-  s.addEventListener('input',()=>{$(vid).textContent=s.value+' ms';const d=get();if(d)d.delayTime.value=+s.value/1000});
+  s.addEventListener('input',()=>{const v=+s.value;$(vid).textContent=v+' ms';const d=get();if(d)d.delayTime.value=v/1000;saveDelay(id,v)});
+});
+$('delay-a-minus').addEventListener('click',()=>adjustDelay('delay-a','delay-a-val',()=>delayA,-10));
+$('delay-a-plus').addEventListener('click',()=>adjustDelay('delay-a','delay-a-val',()=>delayA,10));
+$('delay-b-minus').addEventListener('click',()=>adjustDelay('delay-b','delay-b-val',()=>delayB,-10));
+$('delay-b-plus').addEventListener('click',()=>adjustDelay('delay-b','delay-b-val',()=>delayB,10));
+
+/* ---------- Sync test ---------- */
+let syncTestOn=false,syncClickTimer=null;
+function stopSyncTest(){syncTestOn=false;clearInterval(syncClickTimer);syncClickTimer=null;const btn=$('sync-test-btn');if(btn){btn.classList.remove('active');btn.textContent='🔊 Sync test'}}
+function scheduleSyncClick(){const ac=getAudioCtx();if(!delayA||!delayB)return;const when=ac.currentTime+0.05;[delayA,delayB].forEach(dly=>{const osc=ac.createOscillator(),env=ac.createGain();osc.frequency.value=1000;env.gain.setValueAtTime(0.5,when);env.gain.exponentialRampToValueAtTime(0.001,when+0.03);osc.connect(env);env.connect(dly);osc.start(when);osc.stop(when+0.04)})}
+$('sync-test-btn').addEventListener('click',async()=>{
+  if(!syncTestOn){
+    syncTestOn=true;$('sync-test-btn').classList.add('active');$('sync-test-btn').textContent='⏹ Sync test';
+    getAudioCtx();if(!elA||!elB)await startSplitElements();
+    scheduleSyncClick();syncClickTimer=setInterval(scheduleSyncClick,500);
+  }else stopSyncTest();
 });
 
 /* ---------- Song library ---------- */
