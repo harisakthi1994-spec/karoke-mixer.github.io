@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 log = logging.getLogger("uvicorn.error")
 
@@ -441,7 +441,7 @@ def library_list() -> list[dict]:
     return songs
 
 
-@app.delete("/api/cache/{sha256}", status_code=204)
+@app.delete("/api/cache/{sha256}", status_code=204, response_class=Response)
 def cache_delete(sha256: str) -> None:
     if not SHA256_RE.match(sha256):
         raise HTTPException(status_code=400, detail="Invalid sha256")
