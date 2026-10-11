@@ -13,6 +13,7 @@
 #mixer{display:none}.stem-row{margin-bottom:18px}.stem-row.disabled{opacity:.45}.stem-label{font-weight:600}.stem-label.vocals{color:var(--accent2)}.stem-label.instrumental{color:var(--accent)}.stem-controls{display:flex;align-items:center;gap:12px;margin-top:8px}input[type=range]{appearance:none;flex:1;height:5px;border-radius:999px;background:var(--surface2)}input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent)}input[type=range].vocals-range::-webkit-slider-thumb{background:var(--accent2)}input[type=range]:disabled{cursor:not-allowed}.vol-val{width:32px;text-align:right;color:var(--muted);font-size:.8rem}.divider{border:0;border-top:1px solid var(--border);margin:4px 0 14px}.param-row{display:flex;gap:18px;flex-wrap:wrap}.param-item{flex:1;min-width:140px}.param-item label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}.param-val{font-size:.78rem}.hint{font-size:.74rem;color:var(--muted);margin:10px 0 14px}.playback-row{display:flex;gap:10px}.play-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:999px;padding:10px 28px;font-weight:600}.play-btn:disabled{opacity:.35;cursor:not-allowed}
 #lyrics-area{width:100%;height:130px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;resize:vertical;font-family:inherit}#lyrics-display{background:var(--surface2);border-radius:8px;padding:14px;margin-top:10px;display:none;line-height:1.7}
 #refresh-devices{margin-left:auto}.toggle-row{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;cursor:pointer}.toggle-row input{accent-color:var(--accent);width:16px;height:16px}.toggle-row.disabled{opacity:.5;cursor:not-allowed}#split-note{margin:6px 0 0}#split-panel{display:none;margin-top:14px}.split-item{margin-bottom:16px}.split-item .title{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px}.split-item select{width:100%}.delay-row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.78rem;color:var(--muted)}.delay-row input{flex:1}.delay-row .vol-val{width:52px}
+.lib-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer}.lib-item:last-child{border-bottom:0}.lib-item:hover .lib-name{color:var(--accent)}.lib-name{flex:1;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lib-meta{font-size:.75rem;color:var(--muted);white-space:nowrap}.lib-del{background:none;border:none;color:var(--muted);font-size:1rem;padding:4px 6px;cursor:pointer;line-height:1;border-radius:6px}.lib-del:hover{color:var(--red);background:rgba(224,82,82,.1)}
 </style>
 <script>window.SEPARATION_API_URL='https://karaoke-api.tradeiq.qd.je/api/separate';</script>
 </head>
@@ -20,13 +21,14 @@
 <h1>🎤 Karaoke Mixer</h1>
 <div class="card"><h2>Audio Source</h2><div id="dropzone"><div class="drop-icon">🎵</div><p>Drop audio file here or <span id="browse-link">browse</span></p><p style="margin-top:4px;font-size:.78rem">MP3, WAV, OGG, FLAC supported</p></div><input id="file-input" type="file" accept="audio/*"><div id="file-name"></div><div id="waveform-wrap"><canvas id="waveform"></canvas><span id="waveform-time"></span></div><div id="stem-progress-wrap"><div id="stem-progress-label"><span id="stem-title">Preparing vocal/instrumental separation…</span><span id="stem-pct">0%</span></div><div id="stem-progress-bar-outer"><div id="stem-progress-bar"></div></div><div id="stem-status">Ready.</div></div></div>
 <div class="card"><h2>Audio Output Device</h2><div class="select-row"><label id="single-label">Device</label><select id="output-device"><option value="">Default</option></select><button class="icon-btn" id="refresh-devices" title="Refresh and show device names">⟳</button></div>
-<label class="toggle-row disabled" id="split-toggle-row"><input type="checkbox" id="split-toggle" disabled><span>Split outputs: instrumental to one device, vocals + instrumental to another</span></label><p class="hint" id="split-note"></p>
+<label class="toggle-row disabled" id="split-toggle-row"><input type="checkbox" id="split-toggle" disabled><span>Split outputs: route each output independently</span></label><p class="hint" id="split-note"></p>
 <div id="split-panel">
-<div class="split-item"><span class="title">🎸 Output A: instrumental only (e.g. room speaker)</span><select id="output-a"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-a" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-a-val">0 ms</span></div></div>
-<div class="split-item"><span class="title">🎙 Output B: vocals + instrumental (e.g. singer's headphones)</span><select id="output-b"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-b" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-b-val">0 ms</span></div></div>
+<div class="split-item"><span class="title">🎸 Output A (e.g. room speaker)</span><select id="output-a"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-a" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-a-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-a-v" min="0" max="100" value="0"><span class="vol-val" id="vol-a-v-val">0</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-a-i" min="0" max="100" value="100"><span class="vol-val" id="vol-a-i-val">100</span></div></div>
+<div class="split-item"><span class="title">🎙 Output B (e.g. singer's headphones)</span><select id="output-b"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-b" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-b-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-b-v" min="0" max="100" value="100"><span class="vol-val" id="vol-b-v-val">100</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-b-i" min="0" max="100" value="100"><span class="vol-val" id="vol-b-i-val">100</span></div></div>
 <p class="hint">Bluetooth adds roughly 150–300 ms of latency. If the two outputs sound out of sync, add delay to the non-Bluetooth output until they line up.</p>
 </div>
 <div id="bt-status"></div></div>
+<div class="card" id="library-card" style="display:none"><h2>Available Songs</h2><div id="library-list"></div></div>
 <div class="card" id="mixer"><h2>Stem Mixer</h2><div class="stem-row"><div class="stem-label vocals" id="vocals-label">🎙 Vocals</div><div class="stem-controls"><input class="vocals-range" type="range" id="vocals-vol" min="0" max="100" value="100"><span class="vol-val" id="vocals-vol-val">100</span></div></div><div class="stem-row" id="inst-row"><div class="stem-label instrumental">🎸 Instrumental</div><div class="stem-controls"><input type="range" id="inst-vol" min="0" max="100" value="100"><span class="vol-val" id="inst-vol-val">100</span></div></div><hr class="divider"><div class="param-row"><div class="param-item"><label>Pitch <span class="param-val" id="pitch-val">0 st</span></label><input type="range" id="pitch" min="-12" max="12" value="0"></div><div class="param-item"><label>Tempo <span class="param-val" id="tempo-val">1.00×</span></label><input type="range" id="tempo" min=".5" max="2" value="1" step=".05"></div></div><p class="hint">Pitch and tempo are linked for now: changing one also changes the other's speed/pitch (Web Audio limitation).</p><hr class="divider"><div class="playback-row"><button class="play-btn" id="play-btn" disabled>▶ Play</button><button class="icon-btn" id="stop-btn" disabled>■ Stop</button></div></div>
 <div class="card"><h2>Lyrics</h2><textarea id="lyrics-area" placeholder="Paste or type lyrics here…"></textarea><div id="lyrics-display"></div></div>
 <script>
@@ -45,9 +47,12 @@ let vocalBuffer=null,instBuffer=null,separated=false;
 let vocalSource=null,instSource=null,vocalGain=null,instGain=null;
 let isPlaying=false,startTime=0,pauseOffset=0,playRate=1;
 let selectedOutputDeviceId='',runToken=0;
-// Split-output routing: A = instrumental only, B = vocals + instrumental
+// Split-output routing
 let splitOn=false,outAId='',outBId='';
 let mixBus=null,silentOut=null,delayA=null,delayB=null,destA=null,destB=null,elA=null,elB=null;
+// Per-output mix gains: A vocal, A instrumental, B vocal, B instrumental
+let gainAV=null,gainAI=null,gainBV=null,gainBI=null;
+let lyrKey='';
 
 const $=id=>document.getElementById(id);
 const canvas=$('waveform'),ctx2d=canvas.getContext('2d'),waveTime=$('waveform-time');
@@ -66,6 +71,10 @@ function getAudioCtx(){
     delayA=audioCtx.createDelay(1);delayB=audioCtx.createDelay(1);
     delayA.delayTime.value=(+$('delay-a').value)/1000;delayB.delayTime.value=(+$('delay-b').value)/1000;
     destA=audioCtx.createMediaStreamDestination();destB=audioCtx.createMediaStreamDestination();
+    gainAV=audioCtx.createGain();gainAV.gain.value=+$('vol-a-v').value/100;
+    gainAI=audioCtx.createGain();gainAI.gain.value=+$('vol-a-i').value/100;
+    gainBV=audioCtx.createGain();gainBV.gain.value=+$('vol-b-v').value/100;
+    gainBI=audioCtx.createGain();gainBI.gain.value=+$('vol-b-i').value/100;
     vocalGain.gain.value=(+$('vocals-vol').value)/100;instGain.gain.value=(+$('inst-vol').value)/100;
     routeAudio();
     if(selectedOutputDeviceId&&typeof audioCtx.setSinkId==='function'){audioCtx.setSinkId(selectedOutputDeviceId).catch(()=>{})}
@@ -73,17 +82,21 @@ function getAudioCtx(){
   return audioCtx;
 }
 /* Single mode:  vocals+inst -> mix -> analyser -> speakers
-   Split mode:   inst -> delayA -> stream A (element on device A)
-                 vocals+inst -> delayB -> stream B (element on device B)
-                 (mix -> analyser -> silent sink only drives the visualiser) */
+   Split mode:   vocal*gainAV + inst*gainAI -> delayA -> stream A
+                 vocal*gainBV + inst*gainBI -> delayB -> stream B
+                 (mix -> analyser -> silent sink drives visualiser only) */
 function routeAudio(){
   if(!audioCtx)return;
-  [vocalGain,instGain,mixBus,analyser,delayA,delayB,silentOut].forEach(n=>{try{n.disconnect()}catch(_){}});
+  [vocalGain,instGain,mixBus,analyser,delayA,delayB,silentOut,gainAV,gainAI,gainBV,gainBI].forEach(n=>{try{if(n)n.disconnect()}catch(_){}});
   vocalGain.connect(mixBus);instGain.connect(mixBus);mixBus.connect(analyser);
   if(splitOn){
     analyser.connect(silentOut);silentOut.connect(audioCtx.destination);
-    instGain.connect(delayA);delayA.connect(destA);
-    vocalGain.connect(delayB);instGain.connect(delayB);delayB.connect(destB);
+    vocalGain.connect(gainAV);gainAV.connect(delayA);
+    instGain.connect(gainAI);gainAI.connect(delayA);
+    delayA.connect(destA);
+    vocalGain.connect(gainBV);gainBV.connect(delayB);
+    instGain.connect(gainBI);gainBI.connect(delayB);
+    delayB.connect(destB);
   }else{
     analyser.connect(audioCtx.destination);
   }
@@ -271,7 +284,7 @@ async function separateStems(file,audioBuffer,token,sha256){
       setProgress(0,'Checking cache…','Looking up previous separation');
       try{
         const cacheRes=await fetch(new URL('/api/cache/'+sha256,SEPARATION_API_URL).href,{cache:'no-store'});
-        if(cacheRes.ok){const cached=await cacheRes.json();if(cached.hit){setProgress(75,'Downloading cached stems…','Found in cache');[vocalBuffer,instBuffer]=await downloadStems(cached,token);separated=true;setProgress(100,'Separation complete','✓ Loaded from cache.','success');applyMixerMode();return;}}
+        if(cacheRes.ok){const cached=await cacheRes.json();if(cached.hit){setProgress(75,'Downloading cached stems…','Found in cache');[vocalBuffer,instBuffer]=await downloadStems(cached,token);separated=true;setProgress(100,'Separation complete','✓ Loaded from cache.','success');applyMixerMode();loadLibrary();return;}}
       }catch(_){}
     }
     setProgress(0,'Uploading audio…','Starting upload');
@@ -282,7 +295,7 @@ async function separateStems(file,audioBuffer,token,sha256){
     [vocalBuffer,instBuffer]=await downloadStems(job,token);
     separated=true;
     setProgress(100,'Separation complete','✓ Vocals and instrumental separated successfully.','success');
-    applyMixerMode();
+    applyMixerMode();loadLibrary();
   }catch(err){
     if(err instanceof CancelledError)return;
     console.error(err);
@@ -302,7 +315,7 @@ async function processFile(file){
   const token=++runToken;
   try{
     stopPlayback();pauseOffset=0;vocalBuffer=instBuffer=null;separated=false;updateSplitAvailability();
-    mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
+    lyrKey='';mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
     waveTime.textContent='';
     fileNameEl.textContent='📄 '+file.name;fileNameEl.style.display='block';
     canvas.style.display='block';resizeCanvas();
@@ -365,6 +378,10 @@ function linkVolume(id,valId,getGain){
 }
 linkVolume('vocals-vol','vocals-vol-val',()=>vocalGain);
 linkVolume('inst-vol','inst-vol-val',()=>instGain);
+linkVolume('vol-a-v','vol-a-v-val',()=>gainAV);
+linkVolume('vol-a-i','vol-a-i-val',()=>gainAI);
+linkVolume('vol-b-v','vol-b-v-val',()=>gainBV);
+linkVolume('vol-b-i','vol-b-i-val',()=>gainBI);
 function onRateControlChange(){
   // Re-base the position clock with the OLD rate before switching to the new one.
   if(isPlaying){pauseOffset=currentPos();startTime=audioCtx.currentTime}
@@ -380,13 +397,14 @@ $('tempo').addEventListener('input',function(){
 });
 $('lyrics-area').addEventListener('input',function(){
   const d=$('lyrics-display');d.textContent=this.value;d.style.display=this.value.trim()?'block':'none';
+  if(lyrKey)try{localStorage.setItem(lyrKey,this.value)}catch(_){}
 });
 outputSelect.addEventListener('change',applyOutputDevice);
 $('refresh-devices').addEventListener('click',()=>refreshDevices(true));
 navigator.mediaDevices?.addEventListener?.('devicechange',()=>refreshDevices(false));
 window.addEventListener('resize',resizeCanvas);
 
-/* ---------- Split output: A = instrumental only, B = vocals + instrumental ---------- */
+/* ---------- Split output ---------- */
 function splitSupported(){return !!(window.AudioContext||window.webkitAudioContext)&&'setSinkId' in HTMLMediaElement.prototype}
 async function startSplitElements(){
   getAudioCtx();
@@ -401,8 +419,8 @@ async function startSplitElements(){
 function stopSplitElements(){[elA,elB].forEach(e=>{if(e)try{e.pause()}catch(_){}})}
 function warnSameDevice(){
   btStatus.textContent=(outAId===outBId)
-    ?'⚠ Output A and B are the same device, so the instrumental plays twice. Pick two different devices.'
-    :'✓ Split output active: A = instrumental only, B = vocals + instrumental.';
+    ?'⚠ Output A and B are the same device. Pick two different devices.'
+    :'✓ Split output active. Adjust vocals/instrumental per output below.';
 }
 async function setSplit(on){
   splitOn=on;$('split-toggle').checked=on;
@@ -433,8 +451,68 @@ $('output-b').addEventListener('change',async e=>{outBId=e.target.value;if(elB){
   const s=$(id);
   s.addEventListener('input',()=>{$(vid).textContent=s.value+' ms';const d=get();if(d)d.delayTime.value=+s.value/1000});
 });
+
+/* ---------- Song library ---------- */
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+async function loadLibrary(){
+  if(!SEPARATION_API_URL)return;
+  try{
+    const res=await fetch(new URL('/api/library',SEPARATION_API_URL).href,{cache:'no-store'});
+    if(!res.ok)return;
+    const songs=await res.json();
+    const card=$('library-card'),list=$('library-list');
+    if(!songs.length){card.style.display='none';return}
+    card.style.display='block';
+    list.innerHTML=songs.map(s=>`<div class="lib-item" data-sha="${escHtml(s.sha256)}" data-name="${escHtml(s.name)}" data-size="${s.size}"><span class="lib-name">${escHtml(s.name)}</span><span class="lib-meta">${formatMB(s.size)}</span><button class="lib-del" title="Delete">✕</button></div>`).join('');
+    list.querySelectorAll('.lib-item').forEach(el=>{
+      el.addEventListener('click',e=>{if(!e.target.classList.contains('lib-del'))loadFromLibrary(el.dataset.sha,el.dataset.name,+el.dataset.size)});
+      el.querySelector('.lib-del').addEventListener('click',async e=>{
+        e.stopPropagation();
+        await fetch(new URL('/api/cache/'+el.dataset.sha,SEPARATION_API_URL).href,{method:'DELETE'});
+        loadLibrary();
+      });
+    });
+  }catch(_){}
+}
+function loadSavedLyrics(){
+  if(!lyrKey)return;
+  try{
+    const saved=localStorage.getItem(lyrKey)||'';
+    $('lyrics-area').value=saved;
+    const d=$('lyrics-display');d.textContent=saved;d.style.display=saved.trim()?'block':'none';
+  }catch(_){}
+}
+async function loadFromLibrary(sha256,name,size){
+  const token=++runToken;
+  try{
+    stopPlayback();pauseOffset=0;vocalBuffer=instBuffer=null;separated=false;updateSplitAvailability();
+    lyrKey='';mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
+    waveTime.textContent='';
+    fileNameEl.textContent='📄 '+name;fileNameEl.style.display='block';
+    canvas.style.display='block';resizeCanvas();
+    const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
+    drawWaveform();
+    const cacheRes=await fetch(new URL('/api/cache/'+sha256,SEPARATION_API_URL).href,{cache:'no-store'});
+    if(!cacheRes.ok)throw new Error('Song not found in cache');
+    const cached=await cacheRes.json();
+    if(!cached.hit)throw new Error('Song not found in cache');
+    setProgress(75,'Downloading cached stems…','Loading from library');
+    [vocalBuffer,instBuffer]=await downloadStems(cached,token);
+    separated=true;
+    setProgress(100,'Separation complete','✓ Loaded from library.','success');
+    lyrKey='lyr:'+name+'|'+size;
+    loadSavedLyrics();
+    applyMixerMode();
+  }catch(err){
+    if(err instanceof CancelledError)return;
+    console.error(err);
+    setProgress(0,'Error','⚠ '+err.message,'error');
+  }
+}
+
 updateSplitAvailability();
 refreshDevices(false);
+loadLibrary();
 </script>
 </body>
 </html>

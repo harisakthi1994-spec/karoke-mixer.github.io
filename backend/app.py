@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -187,19 +188,35 @@ def run_demucs(job_id: str, input_path: Path, output_dir: Path) -> tuple[Path, P
     return vocals, instrumental
 
 
-def save_to_cache(sha256: str, vocals_path: Path, instrumental_path: Path) -> None:
+def save_to_cache(
+    sha256: str,
+    vocals_path: Path,
+    instrumental_path: Path,
+    name: str = "",
+    size: int = 0,
+) -> None:
     cache_dir = CACHE_ROOT / sha256
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(vocals_path, cache_dir / vocals_path.name)
         shutil.copy2(instrumental_path, cache_dir / instrumental_path.name)
+        (cache_dir / "meta.json").write_text(
+            json.dumps({"name": name, "size": size, "created": time.time()})
+        )
         cache_dir.touch()
     except Exception:
         log.exception("Failed to save stems to cache for %s", sha256)
         shutil.rmtree(cache_dir, ignore_errors=True)
 
 
-def process_job(job_id: str, job_dir: Path, input_path: Path, sha256: str | None = None) -> None:
+def process_job(
+    job_id: str,
+    job_dir: Path,
+    input_path: Path,
+    sha256: str | None = None,
+    name: str = "",
+    size: int = 0,
+) -> None:
     work_dir = job_dir / "work"
     try:
         set_job(job_id, status="processing", stage="separating", progress=10)
@@ -211,7 +228,7 @@ def process_job(job_id: str, job_dir: Path, input_path: Path, sha256: str | None
         shutil.copy2(instrumental, dest_inst)
         shutil.rmtree(work_dir, ignore_errors=True)
         if sha256:
-            save_to_cache(sha256, dest_vocals, dest_inst)
+            save_to_cache(sha256, dest_vocals, dest_inst, name=name, size=size)
         set_job(job_id, status="done", stage="done", progress=100, format=ext.lstrip("."))
     except Exception as exc:  # noqa: BLE001 - report any failure to the client
         log.exception("Job %s failed", job_id)
@@ -316,7 +333,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -396,6 +413,41 @@ def cache_file(sha256: str, stem_name: str):
     )
 
 
+@app.get("/api/library")
+def library_list() -> list[dict]:
+    songs = []
+    for entry in CACHE_ROOT.iterdir():
+        if not entry.is_dir() or not SHA256_RE.match(entry.name):
+            continue
+        meta_path = entry / "meta.json"
+        if not meta_path.exists():
+            continue
+        stems = find_stems(entry)
+        if "vocals" not in stems or "instrumental" not in stems:
+            continue
+        try:
+            meta = json.loads(meta_path.read_text())
+            songs.append(
+                {
+                    "sha256": entry.name,
+                    "name": meta.get("name", ""),
+                    "size": meta.get("size", 0),
+                    "created": meta.get("created", 0),
+                }
+            )
+        except Exception:
+            continue
+    songs.sort(key=lambda x: x["created"], reverse=True)
+    return songs
+
+
+@app.delete("/api/cache/{sha256}", status_code=204)
+def cache_delete(sha256: str) -> None:
+    if not SHA256_RE.match(sha256):
+        raise HTTPException(status_code=400, detail="Invalid sha256")
+    shutil.rmtree(CACHE_ROOT / sha256, ignore_errors=True)
+
+
 @app.post("/api/separate", status_code=202)
 async def separate(
     request: Request,
@@ -460,7 +512,7 @@ async def separate(
             "created_at": now,
             "updated_at": now,
         }
-    EXECUTOR.submit(process_job, job_id, job_dir, input_path, sha256)
+    EXECUTOR.submit(process_job, job_id, job_dir, input_path, sha256, upload.filename or "", size)
 
     return {
         "job_id": job_id,
