@@ -4,3 +4,4 @@ python-multipart==0.0.20
 demucs==4.0.1
 pydantic==2.11.7
 torchcodec==0.16.0
+# torch and torchaudio are installed separately as CPU-only wheels (see Dockerfile)
