@@ -441,11 +441,12 @@ def library_list() -> list[dict]:
     return songs
 
 
-@app.delete("/api/cache/{sha256}", status_code=204, response_class=Response)
-def cache_delete(sha256: str) -> None:
+@app.delete("/api/cache/{sha256}", status_code=204, response_class=Response, response_model=None)
+def cache_delete(sha256: str) -> Response:
     if not SHA256_RE.match(sha256):
         raise HTTPException(status_code=400, detail="Invalid sha256")
     shutil.rmtree(CACHE_ROOT / sha256, ignore_errors=True)
+    return Response(status_code=204)
 
 
 @app.post("/api/separate", status_code=202)
