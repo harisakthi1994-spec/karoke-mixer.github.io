@@ -12,13 +12,21 @@
 .select-row{display:flex;gap:10px;align-items:center}.select-row label{font-size:.85rem;color:var(--muted)}select{flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px}button{cursor:pointer}.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:1rem}.icon-btn:hover{border-color:var(--accent)}#bt-status{font-size:.78rem;color:var(--muted);margin-top:6px}
 #mixer{display:none}.stem-row{margin-bottom:18px}.stem-row.disabled{opacity:.45}.stem-label{font-weight:600}.stem-label.vocals{color:var(--accent2)}.stem-label.instrumental{color:var(--accent)}.stem-controls{display:flex;align-items:center;gap:12px;margin-top:8px}input[type=range]{appearance:none;flex:1;height:5px;border-radius:999px;background:var(--surface2)}input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent)}input[type=range].vocals-range::-webkit-slider-thumb{background:var(--accent2)}input[type=range]:disabled{cursor:not-allowed}.vol-val{width:32px;text-align:right;color:var(--muted);font-size:.8rem}.divider{border:0;border-top:1px solid var(--border);margin:4px 0 14px}.param-row{display:flex;gap:18px;flex-wrap:wrap}.param-item{flex:1;min-width:140px}.param-item label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}.param-val{font-size:.78rem}.hint{font-size:.74rem;color:var(--muted);margin:10px 0 14px}.playback-row{display:flex;gap:10px}.play-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:999px;padding:10px 28px;font-weight:600}.play-btn:disabled{opacity:.35;cursor:not-allowed}
 #lyrics-area{width:100%;height:130px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;resize:vertical;font-family:inherit}#lyrics-display{background:var(--surface2);border-radius:8px;padding:14px;margin-top:10px;display:none;line-height:1.7}
+#refresh-devices{margin-left:auto}.toggle-row{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;cursor:pointer}.toggle-row input{accent-color:var(--accent);width:16px;height:16px}.toggle-row.disabled{opacity:.5;cursor:not-allowed}#split-note{margin:6px 0 0}#split-panel{display:none;margin-top:14px}.split-item{margin-bottom:16px}.split-item .title{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px}.split-item select{width:100%}.delay-row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.78rem;color:var(--muted)}.delay-row input{flex:1}.delay-row .vol-val{width:52px}
 </style>
 <script>window.SEPARATION_API_URL='https://karaoke-api.tradeiq.qd.je/api/separate';</script>
 </head>
 <body>
 <h1>🎤 Karaoke Mixer</h1>
 <div class="card"><h2>Audio Source</h2><div id="dropzone"><div class="drop-icon">🎵</div><p>Drop audio file here or <span id="browse-link">browse</span></p><p style="margin-top:4px;font-size:.78rem">MP3, WAV, OGG, FLAC supported</p></div><input id="file-input" type="file" accept="audio/*"><div id="file-name"></div><div id="waveform-wrap"><canvas id="waveform"></canvas><span id="waveform-time"></span></div><div id="stem-progress-wrap"><div id="stem-progress-label"><span id="stem-title">Preparing vocal/instrumental separation…</span><span id="stem-pct">0%</span></div><div id="stem-progress-bar-outer"><div id="stem-progress-bar"></div></div><div id="stem-status">Ready.</div></div></div>
-<div class="card"><h2>Audio Output Device</h2><div class="select-row"><label>Device</label><select id="output-device"><option value="">Default</option></select><button class="icon-btn" id="refresh-devices" title="Refresh and show device names">⟳</button></div><div id="bt-status"></div></div>
+<div class="card"><h2>Audio Output Device</h2><div class="select-row"><label id="single-label">Device</label><select id="output-device"><option value="">Default</option></select><button class="icon-btn" id="refresh-devices" title="Refresh and show device names">⟳</button></div>
+<label class="toggle-row disabled" id="split-toggle-row"><input type="checkbox" id="split-toggle" disabled><span>Split outputs: instrumental to one device, vocals + instrumental to another</span></label><p class="hint" id="split-note"></p>
+<div id="split-panel">
+<div class="split-item"><span class="title">🎸 Output A: instrumental only (e.g. room speaker)</span><select id="output-a"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-a" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-a-val">0 ms</span></div></div>
+<div class="split-item"><span class="title">🎙 Output B: vocals + instrumental (e.g. singer's headphones)</span><select id="output-b"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><input type="range" id="delay-b" min="0" max="500" step="10" value="0"><span class="vol-val" id="delay-b-val">0 ms</span></div></div>
+<p class="hint">Bluetooth adds roughly 150–300 ms of latency. If the two outputs sound out of sync, add delay to the non-Bluetooth output until they line up.</p>
+</div>
+<div id="bt-status"></div></div>
 <div class="card" id="mixer"><h2>Stem Mixer</h2><div class="stem-row"><div class="stem-label vocals" id="vocals-label">🎙 Vocals</div><div class="stem-controls"><input class="vocals-range" type="range" id="vocals-vol" min="0" max="100" value="100"><span class="vol-val" id="vocals-vol-val">100</span></div></div><div class="stem-row" id="inst-row"><div class="stem-label instrumental">🎸 Instrumental</div><div class="stem-controls"><input type="range" id="inst-vol" min="0" max="100" value="100"><span class="vol-val" id="inst-vol-val">100</span></div></div><hr class="divider"><div class="param-row"><div class="param-item"><label>Pitch <span class="param-val" id="pitch-val">0 st</span></label><input type="range" id="pitch" min="-12" max="12" value="0"></div><div class="param-item"><label>Tempo <span class="param-val" id="tempo-val">1.00×</span></label><input type="range" id="tempo" min=".5" max="2" value="1" step=".05"></div></div><p class="hint">Pitch and tempo are linked for now: changing one also changes the other's speed/pitch (Web Audio limitation).</p><hr class="divider"><div class="playback-row"><button class="play-btn" id="play-btn" disabled>▶ Play</button><button class="icon-btn" id="stop-btn" disabled>■ Stop</button></div></div>
 <div class="card"><h2>Lyrics</h2><textarea id="lyrics-area" placeholder="Paste or type lyrics here…"></textarea><div id="lyrics-display"></div></div>
 <script>
@@ -37,6 +45,9 @@ let vocalBuffer=null,instBuffer=null,separated=false;
 let vocalSource=null,instSource=null,vocalGain=null,instGain=null;
 let isPlaying=false,startTime=0,pauseOffset=0,playRate=1;
 let selectedOutputDeviceId='',runToken=0;
+// Split-output routing: A = instrumental only, B = vocals + instrumental
+let splitOn=false,outAId='',outBId='';
+let mixBus=null,silentOut=null,delayA=null,delayB=null,destA=null,destB=null,elA=null,elB=null;
 
 const $=id=>document.getElementById(id);
 const canvas=$('waveform'),ctx2d=canvas.getContext('2d'),waveTime=$('waveform-time');
@@ -49,10 +60,33 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function getAudioCtx(){
   if(!audioCtx){
     audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    analyser=audioCtx.createAnalyser();analyser.fftSize=2048;analyser.connect(audioCtx.destination);
+    analyser=audioCtx.createAnalyser();analyser.fftSize=2048;
+    vocalGain=audioCtx.createGain();instGain=audioCtx.createGain();mixBus=audioCtx.createGain();
+    silentOut=audioCtx.createGain();silentOut.gain.value=0;
+    delayA=audioCtx.createDelay(1);delayB=audioCtx.createDelay(1);
+    delayA.delayTime.value=(+$('delay-a').value)/1000;delayB.delayTime.value=(+$('delay-b').value)/1000;
+    destA=audioCtx.createMediaStreamDestination();destB=audioCtx.createMediaStreamDestination();
+    vocalGain.gain.value=(+$('vocals-vol').value)/100;instGain.gain.value=(+$('inst-vol').value)/100;
+    routeAudio();
     if(selectedOutputDeviceId&&typeof audioCtx.setSinkId==='function'){audioCtx.setSinkId(selectedOutputDeviceId).catch(()=>{})}
   }
   return audioCtx;
+}
+/* Single mode:  vocals+inst -> mix -> analyser -> speakers
+   Split mode:   inst -> delayA -> stream A (element on device A)
+                 vocals+inst -> delayB -> stream B (element on device B)
+                 (mix -> analyser -> silent sink only drives the visualiser) */
+function routeAudio(){
+  if(!audioCtx)return;
+  [vocalGain,instGain,mixBus,analyser,delayA,delayB,silentOut].forEach(n=>{try{n.disconnect()}catch(_){}});
+  vocalGain.connect(mixBus);instGain.connect(mixBus);mixBus.connect(analyser);
+  if(splitOn){
+    analyser.connect(silentOut);silentOut.connect(audioCtx.destination);
+    instGain.connect(delayA);delayA.connect(destA);
+    vocalGain.connect(delayB);instGain.connect(delayB);delayB.connect(destB);
+  }else{
+    analyser.connect(audioCtx.destination);
+  }
 }
 function formatTime(s){s=Math.max(0,s);const m=Math.floor(s/60),sec=Math.floor(s%60);return `${m}:${String(sec).padStart(2,'0')}`}
 function formatMB(bytes){return (bytes/1048576).toFixed(1)+' MB'}
@@ -104,15 +138,15 @@ async function refreshDevices(askPermission){
     const outs=ds.filter(d=>d.kind==='audiooutput');
     const btRe=/bluetooth|bt|wireless|airpods|buds|headset/i;
     let bt=false,named=false;
-    outputSelect.innerHTML='<option value="">Default</option>';
+    const selA=$('output-a'),selB=$('output-b'),sels=[outputSelect,selA,selB];
+    sels.forEach(x=>x.innerHTML='<option value="">Default</option>');
     outs.forEach(d=>{
-      if(!d.deviceId||d.deviceId==='default')return;
+      if(!d.deviceId||d.deviceId==='default'||d.deviceId==='communications')return;
       const isBt=btRe.test(d.label);if(isBt)bt=true;if(d.label)named=true;
-      const o=document.createElement('option');o.value=d.deviceId;
-      o.textContent=(isBt?'📶 ':'🔊 ')+(d.label||`Output ${d.deviceId.slice(0,6)}`);
-      outputSelect.appendChild(o);
+      const text=(isBt?'📶 ':'🔊 ')+(d.label||`Output ${d.deviceId.slice(0,6)}`);
+      sels.forEach(x=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=text;x.appendChild(o)});
     });
-    outputSelect.value=selectedOutputDeviceId;
+    outputSelect.value=selectedOutputDeviceId;selA.value=outAId;selB.value=outBId;
     if(bt)btStatus.textContent='Bluetooth device detected. Select it above.';
     else if(outputSelect.options.length>1)btStatus.textContent=named?`${outputSelect.options.length-1} output(s) found.`:'Outputs found. Click ⟳ to show their names.';
     else btStatus.textContent='No additional output devices found.';
@@ -222,6 +256,7 @@ function applyMixerMode(){
   $('inst-row').classList.toggle('disabled',!separated);
   $('vocals-label').textContent=separated?'🎙 Vocals':'🔊 Original track';
   mixer.style.display='block';playBtn.disabled=false;stopBtn.disabled=false;
+  updateSplitAvailability();
 }
 function useFallback(audioBuffer,message){
   vocalBuffer=audioBuffer;instBuffer=audioBuffer;separated=false;
@@ -259,7 +294,7 @@ fileInput.addEventListener('change',()=>{if(fileInput.files[0])processFile(fileI
 async function processFile(file){
   const token=++runToken;
   try{
-    stopPlayback();pauseOffset=0;vocalBuffer=instBuffer=null;separated=false;
+    stopPlayback();pauseOffset=0;vocalBuffer=instBuffer=null;separated=false;updateSplitAvailability();
     mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
     waveTime.textContent='';
     fileNameEl.textContent='📄 '+file.name;fileNameEl.style.display='block';
@@ -281,7 +316,7 @@ async function processFile(file){
 /* ---------- Playback ---------- */
 function connectStem(buffer,gain){
   const ac=getAudioCtx(),src=ac.createBufferSource();
-  src.buffer=buffer;src.connect(gain);gain.connect(analyser);return src;
+  src.buffer=buffer;src.connect(gain);return src;
 }
 function stopPlayback(){
   if(vocalSource){try{vocalSource.stop()}catch(_){}vocalSource=null}
@@ -292,6 +327,7 @@ function applyRate(src){src.detune.value=(+$('pitch').value)*100;src.playbackRat
 playBtn.addEventListener('click',async()=>{
   const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
   if(!vocalBuffer&&!instBuffer)return;
+  if(splitOn)await startSplitElements();
   if(isPlaying){pauseOffset=currentPos();stopPlayback();return}
   stopPlayback();
   const dur=trackDuration();
@@ -341,6 +377,55 @@ outputSelect.addEventListener('change',applyOutputDevice);
 $('refresh-devices').addEventListener('click',()=>refreshDevices(true));
 navigator.mediaDevices?.addEventListener?.('devicechange',()=>refreshDevices(false));
 window.addEventListener('resize',resizeCanvas);
+
+/* ---------- Split output: A = instrumental only, B = vocals + instrumental ---------- */
+function splitSupported(){return !!(window.AudioContext||window.webkitAudioContext)&&'setSinkId' in HTMLMediaElement.prototype}
+async function startSplitElements(){
+  getAudioCtx();
+  if(!elA){elA=new Audio();elA.srcObject=destA.stream}
+  if(!elB){elB=new Audio();elB.srcObject=destB.stream}
+  try{
+    await Promise.all([elA.setSinkId(outAId||''),elB.setSinkId(outBId||'')]);
+    await Promise.all([elA.play(),elB.play()]);
+    warnSameDevice();
+  }catch(e){btStatus.textContent='Split output failed: '+e.message}
+}
+function stopSplitElements(){[elA,elB].forEach(e=>{if(e)try{e.pause()}catch(_){}})}
+function warnSameDevice(){
+  btStatus.textContent=(outAId===outBId)
+    ?'⚠ Output A and B are the same device, so the instrumental plays twice. Pick two different devices.'
+    :'✓ Split output active: A = instrumental only, B = vocals + instrumental.';
+}
+async function setSplit(on){
+  splitOn=on;$('split-toggle').checked=on;
+  $('split-panel').style.display=on?'block':'none';
+  outputSelect.hidden=on;
+  $('single-label').textContent=on?'Output devices':'Device';
+  const ac=getAudioCtx();routeAudio();
+  if(on){if(isPlaying)await startSplitElements();else btStatus.textContent='Split output on. Press Play to start both outputs.'}
+  else{
+    stopSplitElements();
+    if(typeof ac.setSinkId==='function'){try{await ac.setSinkId(selectedOutputDeviceId||'')}catch(_){}}
+    btStatus.textContent='Single output mode.';
+  }
+}
+function updateSplitAvailability(){
+  const ok=splitSupported()&&separated;
+  $('split-toggle').disabled=!ok;
+  $('split-toggle-row').classList.toggle('disabled',!ok);
+  $('split-note').textContent=!splitSupported()
+    ?"This browser can't route to two devices (use Chrome, Edge or Brave)."
+    :(!separated?'Available once vocals and instrumental are separated.':'');
+  if(!ok&&splitOn)setSplit(false);
+}
+$('split-toggle').addEventListener('change',e=>setSplit(e.target.checked));
+$('output-a').addEventListener('change',async e=>{outAId=e.target.value;if(elA){try{await elA.setSinkId(outAId||'')}catch(x){btStatus.textContent=x.message}}warnSameDevice()});
+$('output-b').addEventListener('change',async e=>{outBId=e.target.value;if(elB){try{await elB.setSinkId(outBId||'')}catch(x){btStatus.textContent=x.message}}warnSameDevice()});
+[['delay-a','delay-a-val',()=>delayA],['delay-b','delay-b-val',()=>delayB]].forEach(([id,vid,get])=>{
+  const s=$(id);
+  s.addEventListener('input',()=>{$(vid).textContent=s.value+' ms';const d=get();if(d)d.delayTime.value=+s.value/1000});
+});
+updateSplitAvailability();
 refreshDevices(false);
 </script>
 </body>
