@@ -6,31 +6,60 @@
 <title>Karaoke Mixer</title>
 <style>
 :root{--bg:#1a1a2e;--surface:#16213e;--surface2:#0f3460;--accent:#667eea;--accent2:#c05fa0;--text:#fff;--muted:#a0aec0;--border:rgba(102,126,234,.3);--green:#3ecf8e;--red:#e05252}
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px}h1{text-align:center;font-size:1.7rem;margin-bottom:28px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;max-width:680px;margin-left:auto;margin-right:auto}.card h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:14px}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px;overflow-x:hidden}h1{text-align:center;font-size:1.7rem;margin-bottom:28px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;min-width:0}.card h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:14px}
 #dropzone{border:2px dashed var(--border);border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:.2s}#dropzone:hover,#dropzone.drag-over{border-color:var(--accent);background:#1f1f2e}#dropzone p{color:var(--muted);font-size:.9rem}#dropzone span{color:var(--accent);text-decoration:underline;cursor:pointer}.drop-icon{font-size:2.2rem;margin-bottom:8px}#file-input{display:none}#file-name{margin-top:10px;color:var(--green);display:none}
-#waveform-wrap{position:relative;margin-top:14px}#waveform{width:100%;height:120px;border-radius:8px;background:var(--surface2);display:none;cursor:pointer;touch-action:none}#waveform-time{position:absolute;top:6px;right:10px;color:var(--muted);font-size:.75rem}#stem-progress-wrap{margin-top:14px;display:none}#stem-progress-label{font-size:.82rem;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}#stem-progress-bar-outer{background:var(--surface2);border-radius:999px;height:8px;overflow:hidden}#stem-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px;transition:width .3s}#stem-status{font-size:.85rem;color:var(--muted);margin-top:8px;line-height:1.4}.status-success{color:var(--green)!important}.status-error{color:#ff9a9a!important}.status-warn{color:#f6c667!important}
-.select-row{display:flex;gap:10px;align-items:center}.select-row label{font-size:.85rem;color:var(--muted)}select{flex:1;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px}button{cursor:pointer}.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:1rem}.icon-btn:hover{border-color:var(--accent)}#bt-status{font-size:.78rem;color:var(--muted);margin-top:6px}
-#mixer{display:none}.stem-row{margin-bottom:18px}.stem-row.disabled{opacity:.45}.stem-label{font-weight:600}.stem-label.vocals{color:var(--accent2)}.stem-label.instrumental{color:var(--accent)}.stem-controls{display:flex;align-items:center;gap:12px;margin-top:8px}input[type=range]{appearance:none;flex:1;height:5px;border-radius:999px;background:var(--surface2)}input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent)}input[type=range].vocals-range::-webkit-slider-thumb{background:var(--accent2)}input[type=range]:disabled{cursor:not-allowed}.vol-val{width:32px;text-align:right;color:var(--muted);font-size:.8rem}.divider{border:0;border-top:1px solid var(--border);margin:4px 0 14px}.param-row{display:flex;gap:18px;flex-wrap:wrap}.param-item{flex:1;min-width:140px}.param-item label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}.param-val{font-size:.78rem}.hint{font-size:.74rem;color:var(--muted);margin:10px 0 14px}.playback-row{display:flex;gap:10px}.play-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:999px;padding:10px 28px;font-weight:600}.play-btn:disabled{opacity:.35;cursor:not-allowed}
-#lyrics-area{width:100%;height:130px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;resize:vertical;font-family:inherit}#lyrics-display{background:var(--surface2);border-radius:8px;padding:14px;margin-top:10px;display:none;line-height:1.7}
+#waveform-wrap{position:relative;margin:4px 0 14px}#waveform{width:100%;height:120px;border-radius:8px;background:var(--surface2);display:none;cursor:pointer;touch-action:none}#waveform-time{position:absolute;top:6px;right:10px;color:var(--muted);font-size:.75rem}#stem-progress-wrap{margin-top:14px;display:none}#stem-progress-label{font-size:.82rem;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}#stem-progress-bar-outer{background:var(--surface2);border-radius:999px;height:8px;overflow:hidden}#stem-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px;transition:width .3s}#stem-status{font-size:.85rem;color:var(--muted);margin-top:8px;line-height:1.4}.status-success{color:var(--green)!important}.status-error{color:#ff9a9a!important}.status-warn{color:#f6c667!important}
+.select-row{display:flex;gap:10px;align-items:center}.select-row label{font-size:.85rem;color:var(--muted)}select{flex:1;min-width:0;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px}button{cursor:pointer}.icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:1rem}.icon-btn:hover{border-color:var(--accent)}#bt-status{font-size:.78rem;color:var(--muted);margin-top:6px}
+#mixer{display:none}.stem-row{margin-bottom:18px}.stem-row.disabled{opacity:.45}.stem-label{font-weight:600}.stem-label.vocals{color:var(--accent2)}.stem-label.instrumental{color:var(--accent)}.stem-controls{display:flex;align-items:center;gap:12px;margin-top:8px}input[type=range]{appearance:none;flex:1;min-width:0;height:5px;border-radius:999px;background:var(--surface2)}input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent)}input[type=range].vocals-range::-webkit-slider-thumb{background:var(--accent2)}input[type=range]:disabled{cursor:not-allowed}.vol-val{width:32px;text-align:right;color:var(--muted);font-size:.8rem}.divider{border:0;border-top:1px solid var(--border);margin:4px 0 14px}.param-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:6px}.param-item{flex:1;min-width:140px}.param-item label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}.param-val{font-size:.78rem}.hint{font-size:.74rem;color:var(--muted);margin:10px 0 14px}.playback-row{display:flex;gap:10px;margin-bottom:16px}.play-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:999px;padding:10px 28px;font-weight:600}.play-btn:disabled{opacity:.35;cursor:not-allowed}
+#lyrics-area{width:100%;height:150px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;resize:vertical;font-family:inherit}
 #refresh-devices{margin-left:auto}.toggle-row{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;cursor:pointer}.toggle-row input{accent-color:var(--accent);width:16px;height:16px}.toggle-row.disabled{opacity:.5;cursor:not-allowed}#split-note{margin:6px 0 0}#split-panel{display:none;margin-top:14px}.split-item{margin-bottom:16px}.split-item .title{display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px}.split-item select{width:100%}.delay-row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.78rem;color:var(--muted)}.delay-row input{flex:1}.delay-row .vol-val{width:52px}.adj-btn{padding:4px 8px;font-size:.85rem;min-width:28px}#sync-test-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(102,126,234,.15)}
 .lib-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer}.lib-item:last-child{border-bottom:0}.lib-item:hover .lib-name{color:var(--accent)}.lib-name{flex:1;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lib-meta{font-size:.75rem;color:var(--muted);white-space:nowrap}.lib-del{background:none;border:none;color:var(--muted);font-size:1rem;padding:4px 6px;cursor:pointer;line-height:1;border-radius:6px}.lib-del:hover{color:var(--red);background:rgba(224,82,82,.1)}
+.container{max-width:1100px;margin:0 auto}.tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border)}.tab-btn{flex:1;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font-size:1rem;font-weight:600;padding:12px 8px;margin-bottom:-1px}.tab-btn:hover{color:var(--text)}.tab-btn.active{color:var(--text);border-bottom-color:var(--accent)}.tab-panel[hidden]{display:none}#panel-import{max-width:680px;margin:0 auto}
+#import-done{display:none;margin-top:16px;text-align:center}#import-done-msg{color:var(--green);font-weight:600;margin-bottom:12px}
+.player-grid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}.player-main{min-width:0}
+#now-title{font-size:1.25rem;font-weight:700;overflow-wrap:anywhere}#now-status{font-size:.82rem;color:var(--muted);margin:4px 0 8px;min-height:1em}
+.mix-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}.mix-grid .stem-row{margin-bottom:10px}
+#output-settings{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}#output-settings summary{cursor:pointer;font-size:.85rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}#output-settings .out-body{margin-top:14px}
+#library-list .lib-empty{color:var(--muted);font-size:.85rem}.lib-item.active .lib-name{color:var(--accent);font-weight:600}
+#lyrics-display{position:relative;height:clamp(260px,48vh,480px);overflow-y:auto;scrollbar-width:none;background:var(--surface2);border-radius:10px;padding:calc(clamp(260px,48vh,480px)/2 - 30px) 16px;text-align:center}#lyrics-display::-webkit-scrollbar{display:none}
+.lyr-line{font-size:1.1rem;line-height:1.5;padding:6px 0;color:var(--muted);opacity:.35;transition:all .35s ease;overflow-wrap:anywhere}.lyr-line.near{opacity:.6;font-size:1.25rem}.lyr-line.cur{opacity:1;color:#fff;font-weight:700;font-size:clamp(1.5rem,4vw,2.3rem);text-shadow:0 0 18px rgba(102,126,234,.7)}.lyr-line.unsynced{opacity:.9;color:var(--text)}.lyr-empty{color:var(--muted);font-size:.95rem;padding:0 8px}
+.lyr-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}.lyr-offset{flex:1;min-width:180px}.lyr-offset label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}.lyr-offset input{width:100%}#lyrics-edit{display:none;margin-top:12px}#lyrics-edit .hint{margin:8px 0 0}#edit-lyrics-btn.active{border-color:var(--accent);color:var(--accent)}
+@media(max-width:800px){.player-grid{grid-template-columns:minmax(0,1fr)}.mix-grid{grid-template-columns:1fr}h1{font-size:1.4rem;margin-bottom:18px}.card{padding:16px}}
 </style>
 <script>window.SEPARATION_API_URL='https://karaoke-api.tradeiq.qd.je/api/separate';</script>
 </head>
 <body>
 <h1>🎤 Karaoke Mixer</h1>
-<div class="card"><h2>Audio Source</h2><div id="dropzone"><div class="drop-icon">🎵</div><p>Drop audio file here or <span id="browse-link">browse</span></p><p style="margin-top:4px;font-size:.78rem">MP3, WAV, OGG, FLAC supported</p></div><input id="file-input" type="file" accept="audio/*"><div id="file-name"></div><div id="waveform-wrap"><canvas id="waveform"></canvas><span id="waveform-time"></span></div><div id="stem-progress-wrap"><div id="stem-progress-label"><span id="stem-title">Preparing vocal/instrumental separation…</span><span id="stem-pct">0%</span></div><div id="stem-progress-bar-outer"><div id="stem-progress-bar"></div></div><div id="stem-status">Ready.</div></div></div>
-<div class="card"><h2>Audio Output Device</h2><div class="select-row"><label id="single-label">Device</label><select id="output-device"><option value="">Default</option></select><button class="icon-btn" id="refresh-devices" title="Refresh and show device names">⟳</button></div>
+<div class="container">
+<div class="tabs" role="tablist"><button class="tab-btn active" id="tab-import" role="tab" aria-selected="true">Import &amp; Split</button><button class="tab-btn" id="tab-player" role="tab" aria-selected="false">Player</button></div>
+<section id="panel-import" class="tab-panel">
+<div class="card"><h2>Audio Source</h2><div id="dropzone"><div class="drop-icon">🎵</div><p>Drop audio file here or <span id="browse-link">browse</span></p><p style="margin-top:4px;font-size:.78rem">MP3, WAV, OGG, FLAC supported</p></div><input id="file-input" type="file" accept="audio/*"><div id="file-name"></div><div id="stem-progress-wrap"><div id="stem-progress-label"><span id="stem-title">Preparing vocal/instrumental separation…</span><span id="stem-pct">0%</span></div><div id="stem-progress-bar-outer"><div id="stem-progress-bar"></div></div><div id="stem-status">Ready.</div></div>
+<div id="import-done"><div id="import-done-msg">✓ Added to library</div><button class="play-btn" id="open-player-btn">Open in player</button></div></div>
+</section>
+<section id="panel-player" class="tab-panel" hidden>
+<div class="player-grid">
+<div class="card" id="library-card"><h2>Available Songs</h2><div id="library-list"></div></div>
+<div class="player-main">
+<div class="card" id="now-card"><h2>Now Playing</h2><div id="now-title">No song loaded</div><div id="now-status"></div>
+<div id="waveform-wrap"><canvas id="waveform"></canvas><span id="waveform-time"></span></div>
+<div id="mixer"><div class="playback-row"><button class="play-btn" id="play-btn" disabled>▶ Play</button><button class="icon-btn" id="stop-btn" disabled>■ Stop</button></div><div class="mix-grid"><div class="stem-row"><div class="stem-label vocals" id="vocals-label">🎙 Vocals</div><div class="stem-controls"><input class="vocals-range" type="range" id="vocals-vol" min="0" max="100" value="100"><span class="vol-val" id="vocals-vol-val">100</span></div></div><div class="stem-row" id="inst-row"><div class="stem-label instrumental">🎸 Instrumental</div><div class="stem-controls"><input type="range" id="inst-vol" min="0" max="100" value="100"><span class="vol-val" id="inst-vol-val">100</span></div></div></div><div class="param-row"><div class="param-item"><label>Tempo <span class="param-val" id="tempo-val">1.00×</span></label><input type="range" id="tempo" min=".5" max="2" value="1" step=".05"></div><div class="param-item"><label>Pitch <span class="param-val" id="pitch-val">0 st</span></label><input type="range" id="pitch" min="-12" max="12" value="0"></div></div><p class="hint">Pitch and tempo are linked for now: changing one also changes the other's speed/pitch (Web Audio limitation).</p></div>
+<details id="output-settings"><summary>Output settings</summary><div class="out-body">
+<div class="select-row"><label id="single-label">Device</label><select id="output-device"><option value="">Default</option></select><button class="icon-btn" id="refresh-devices" title="Refresh and show device names">⟳</button></div>
 <label class="toggle-row disabled" id="split-toggle-row"><input type="checkbox" id="split-toggle" disabled><span>Split outputs: route each output independently</span></label><p class="hint" id="split-note"></p>
 <div id="split-panel">
 <div class="split-item"><span class="title">🎸 Output A (e.g. room speaker)</span><select id="output-a"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><button class="icon-btn adj-btn" id="delay-a-minus">−</button><input type="range" id="delay-a" min="0" max="800" step="5" value="0"><button class="icon-btn adj-btn" id="delay-a-plus">+</button><span class="vol-val" id="delay-a-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-a-v" min="0" max="100" value="0"><span class="vol-val" id="vol-a-v-val">0</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-a-i" min="0" max="100" value="100"><span class="vol-val" id="vol-a-i-val">100</span></div></div>
 <div class="split-item"><span class="title">🎙 Output B (e.g. singer's headphones)</span><select id="output-b"><option value="">Default</option></select><div class="delay-row"><span>Delay</span><button class="icon-btn adj-btn" id="delay-b-minus">−</button><input type="range" id="delay-b" min="0" max="800" step="5" value="0"><button class="icon-btn adj-btn" id="delay-b-plus">+</button><span class="vol-val" id="delay-b-val">0 ms</span></div><div class="delay-row"><span>Vocals</span><input class="vocals-range" type="range" id="vol-b-v" min="0" max="100" value="100"><span class="vol-val" id="vol-b-v-val">100</span></div><div class="delay-row"><span>Instrumental</span><input type="range" id="vol-b-i" min="0" max="100" value="100"><span class="vol-val" id="vol-b-i-val">100</span></div></div>
 <p class="hint">Bluetooth adds roughly 150–300 ms of latency. If the two outputs sound out of sync, add delay to the non-Bluetooth output until they line up.</p><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px"><button id="sync-test-btn" class="icon-btn" style="font-size:.82rem;white-space:nowrap">🔊 Sync test</button><span class="hint" style="margin:0;flex:1">Delay the faster output (usually the wired speaker) until the clicks sound like one.</span></div>
 </div>
-<div id="bt-status"></div></div>
-<div class="card" id="library-card" style="display:none"><h2>Available Songs</h2><div id="library-list"></div></div>
-<div class="card" id="mixer"><h2>Stem Mixer</h2><div class="stem-row"><div class="stem-label vocals" id="vocals-label">🎙 Vocals</div><div class="stem-controls"><input class="vocals-range" type="range" id="vocals-vol" min="0" max="100" value="100"><span class="vol-val" id="vocals-vol-val">100</span></div></div><div class="stem-row" id="inst-row"><div class="stem-label instrumental">🎸 Instrumental</div><div class="stem-controls"><input type="range" id="inst-vol" min="0" max="100" value="100"><span class="vol-val" id="inst-vol-val">100</span></div></div><hr class="divider"><div class="param-row"><div class="param-item"><label>Pitch <span class="param-val" id="pitch-val">0 st</span></label><input type="range" id="pitch" min="-12" max="12" value="0"></div><div class="param-item"><label>Tempo <span class="param-val" id="tempo-val">1.00×</span></label><input type="range" id="tempo" min=".5" max="2" value="1" step=".05"></div></div><p class="hint">Pitch and tempo are linked for now: changing one also changes the other's speed/pitch (Web Audio limitation).</p><hr class="divider"><div class="playback-row"><button class="play-btn" id="play-btn" disabled>▶ Play</button><button class="icon-btn" id="stop-btn" disabled>■ Stop</button></div></div>
-<div class="card"><h2>Lyrics</h2><textarea id="lyrics-area" placeholder="Paste or type lyrics here…"></textarea><div id="lyrics-display"></div></div>
+<div id="bt-status"></div>
+</div></details></div>
+<div class="card" id="lyrics-card"><h2>Lyrics</h2>
+<div id="lyrics-display"><div class="lyr-empty">No lyrics yet. Upload an .lrc file or edit lyrics.</div></div>
+<div class="lyr-toolbar"><button class="icon-btn" id="lrc-upload-btn">Upload .lrc</button><input id="lrc-input" type="file" accept=".lrc,.txt,text/plain" hidden><button class="icon-btn" id="edit-lyrics-btn">Edit lyrics</button><button class="icon-btn" id="tap-sync-btn" title="Play the song, then tap as each line starts">Tap to sync</button><div class="lyr-offset"><label for="lyrics-offset">Offset <span id="lyrics-offset-val">0 ms</span></label><input type="range" id="lyrics-offset" min="-5000" max="5000" step="50" value="0"></div></div>
+<div id="lyrics-edit"><textarea id="lyrics-area" placeholder="Paste or type lyrics here (plain text or LRC with [mm:ss.xx] stamps)…"></textarea><p class="hint" id="tap-hint">Tap to sync: type one lyric per line, press Play, then press “Tap to sync” as each line starts. It adds a timestamp to the next unstamped line.</p></div></div>
+</div></div>
+</section>
+</div>
 <script>
 /* ---------- Config ---------- */
 function readStoredApiUrl(){try{return localStorage.getItem('SEPARATION_API_URL')||''}catch(_){return ''}}
@@ -52,7 +81,7 @@ let splitOn=false,outAId='',outBId='';
 let mixBus=null,silentOut=null,delayA=null,delayB=null,destA=null,destB=null,elA=null,elB=null;
 // Per-output mix gains: A vocal, A instrumental, B vocal, B instrumental
 let gainAV=null,gainAI=null,gainBV=null,gainBI=null;
-let lyrKey='';
+let lyrKey='',currentSha='';
 
 const $=id=>document.getElementById(id);
 const canvas=$('waveform'),ctx2d=canvas.getContext('2d'),waveTime=$('waveform-time');
@@ -110,6 +139,12 @@ function setProgress(pct,title,status,kind){
   if(title)stemTitle.textContent=title;
   if(status!==undefined){stemStatus.textContent=status;stemStatus.className=kind?('status-'+kind):''}
 }
+function showImportDone(added){
+  $('import-done-msg').textContent=added?'✓ Added to library':'Not added to library (original track only)';
+  $('import-done-msg').style.color=added?'':'#f6c667';
+  $('import-done').style.display='block';
+}
+function setNowTitle(name,status){$('now-title').textContent=name||'No song loaded';$('now-status').textContent=status||''}
 class CancelledError extends Error{}
 function checkToken(token){if(token!==runToken)throw new CancelledError('cancelled')}
 
@@ -270,13 +305,13 @@ function applyMixerMode(){
   $('inst-vol').disabled=!separated;
   $('inst-row').classList.toggle('disabled',!separated);
   $('vocals-label').textContent=separated?'🎙 Vocals':'🔊 Original track';
-  mixer.style.display='block';playBtn.disabled=false;stopBtn.disabled=false;
+  mixer.style.display='block';playBtn.disabled=false;stopBtn.disabled=false;$('now-status').textContent=separated?'':'Original track only (not separated)';
   updateSplitAvailability();
 }
 function useFallback(audioBuffer,message){
   vocalBuffer=audioBuffer;instBuffer=audioBuffer;separated=false;
   setProgress(100,'Using original track',message,'warn');
-  applyMixerMode();
+  applyMixerMode();showImportDone(false);
 }
 async function separateStems(file,audioBuffer,token,sha256){
   if(!SEPARATION_API_URL)return useFallback(audioBuffer,'No separation server configured. Playing the original track only.');
@@ -286,7 +321,7 @@ async function separateStems(file,audioBuffer,token,sha256){
       setProgress(0,'Checking cache…','Looking up previous separation');
       try{
         const cacheRes=await fetch(new URL('/api/cache/'+sha256,SEPARATION_API_URL).href,{cache:'no-store'});
-        if(cacheRes.ok){const cached=await cacheRes.json();if(cached.hit){setProgress(75,'Downloading cached stems…','Found in cache');[vocalBuffer,instBuffer]=await downloadStems(cached,token);separated=true;setProgress(100,'Separation complete','✓ Loaded from cache.','success');applyMixerMode();loadLibrary();return;}}
+        if(cacheRes.ok){const cached=await cacheRes.json();if(cached.hit){setProgress(75,'Downloading cached stems…','Found in cache');[vocalBuffer,instBuffer]=await downloadStems(cached,token);separated=true;setProgress(100,'Separation complete','✓ Loaded from cache.','success');applyMixerMode();showImportDone(true);loadLibrary();return;}}
       }catch(_){}
     }
     setProgress(0,'Uploading audio…','Starting upload');
@@ -297,7 +332,7 @@ async function separateStems(file,audioBuffer,token,sha256){
     [vocalBuffer,instBuffer]=await downloadStems(job,token);
     separated=true;
     setProgress(100,'Separation complete','✓ Vocals and instrumental separated successfully.','success');
-    applyMixerMode();loadLibrary();
+    applyMixerMode();showImportDone(true);loadLibrary();
   }catch(err){
     if(err instanceof CancelledError)return;
     console.error(err);
@@ -317,8 +352,9 @@ async function processFile(file){
   const token=++runToken;
   try{
     stopPlayback();pauseOffset=0;vocalBuffer=instBuffer=null;separated=false;updateSplitAvailability();
-    lyrKey='';mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
-    waveTime.textContent='';
+    lyrKey='';currentSha='';resetLyrics();$('import-done').style.display='none';
+    mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
+    waveTime.textContent='';setNowTitle(file.name,'Preparing…');
     fileNameEl.textContent='📄 '+file.name;fileNameEl.style.display='block';
     canvas.style.display='block';resizeCanvas();
     const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
@@ -326,13 +362,14 @@ async function processFile(file){
     const [buf,hashBuf]=await Promise.all([ac.decodeAudioData(ab.slice(0)),crypto.subtle.digest('SHA-256',ab)]);
     const sha256=Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
     checkToken(token);
+    currentSha=sha256;lyrKey='lyr:'+sha256;loadSavedLyrics();highlightLibrary();
     drawWaveform();
     await separateStems(file,buf,token,sha256);
   }catch(err){
     if(err instanceof CancelledError)return;
     console.error(err);
     setProgress(0,'Error','⚠ Could not load audio: '+(err.message||err),'error');
-    progressPct.textContent='Error';mixer.style.display='none';
+    progressPct.textContent='Error';mixer.style.display='none';setNowTitle(file.name,'⚠ Could not load audio');
   }finally{fileInput.value=''}
 }
 
@@ -399,8 +436,8 @@ $('tempo').addEventListener('input',function(){
   $('tempo-val').textContent=(+this.value).toFixed(2)+'×';onRateControlChange();
 });
 $('lyrics-area').addEventListener('input',function(){
-  const d=$('lyrics-display');d.textContent=this.value;d.style.display=this.value.trim()?'block':'none';
   if(lyrKey)try{localStorage.setItem(lyrKey,this.value)}catch(_){}
+  parseLyrics(this.value);renderLyrics();
 });
 outputSelect.addEventListener('change',applyOutputDevice);
 $('refresh-devices').addEventListener('click',()=>refreshDevices(true));
@@ -526,10 +563,10 @@ async function loadLibrary(){
     const res=await fetch(new URL('/api/library',SEPARATION_API_URL).href,{cache:'no-store'});
     if(!res.ok)return;
     const songs=await res.json();
-    const card=$('library-card'),list=$('library-list');
-    if(!songs.length){card.style.display='none';return}
-    card.style.display='block';
+    const list=$('library-list');
+    if(!songs.length){list.innerHTML='<div class="lib-empty">No songs yet. Import one in the “Import &amp; Split” tab.</div>';return}
     list.innerHTML=songs.map(s=>`<div class="lib-item" data-sha="${escHtml(s.sha256)}" data-name="${escHtml(s.name)}" data-size="${s.size}"><span class="lib-name">${escHtml(s.name)}</span><span class="lib-meta">${formatMB(s.size)}</span><button class="lib-del" title="Delete">✕</button></div>`).join('');
+    highlightLibrary();
     list.querySelectorAll('.lib-item').forEach(el=>{
       el.addEventListener('click',e=>{if(!e.target.classList.contains('lib-del'))loadFromLibrary(el.dataset.sha,el.dataset.name,+el.dataset.size)});
       el.querySelector('.lib-del').addEventListener('click',async e=>{
@@ -540,20 +577,25 @@ async function loadLibrary(){
     });
   }catch(_){}
 }
-function loadSavedLyrics(){
+function highlightLibrary(){document.querySelectorAll('#library-list .lib-item').forEach(el=>el.classList.toggle('active',!!currentSha&&el.dataset.sha===currentSha))}
+function loadSavedLyrics(legacyKey){
   if(!lyrKey)return;
   try{
-    const saved=localStorage.getItem(lyrKey)||'';
+    let saved=localStorage.getItem(lyrKey);
+    if(saved===null&&legacyKey){saved=localStorage.getItem(legacyKey);if(saved!==null)localStorage.setItem(lyrKey,saved)}
+    saved=saved||'';
     $('lyrics-area').value=saved;
-    const d=$('lyrics-display');d.textContent=saved;d.style.display=saved.trim()?'block':'none';
-  }catch(_){}
+    const off=+(localStorage.getItem('lyro:'+currentSha)||0)||0;setLyricsOffset(off);
+  }catch(_){$('lyrics-area').value=''}
+  parseLyrics($('lyrics-area').value);renderLyrics();
 }
 async function loadFromLibrary(sha256,name,size){
   const token=++runToken;
   try{
     stopPlayback();pauseOffset=0;vocalBuffer=instBuffer=null;separated=false;updateSplitAvailability();
-    lyrKey='';mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
-    waveTime.textContent='';
+    lyrKey='';currentSha=sha256;resetLyrics();highlightLibrary();
+    mixer.style.display='none';playBtn.disabled=true;stopBtn.disabled=true;
+    waveTime.textContent='';setNowTitle(name,'Loading from library…');
     fileNameEl.textContent='📄 '+name;fileNameEl.style.display='block';
     canvas.style.display='block';resizeCanvas();
     const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
@@ -566,15 +608,98 @@ async function loadFromLibrary(sha256,name,size){
     [vocalBuffer,instBuffer]=await downloadStems(cached,token);
     separated=true;
     setProgress(100,'Separation complete','✓ Loaded from library.','success');
-    lyrKey='lyr:'+name+'|'+size;
-    loadSavedLyrics();
+    lyrKey='lyr:'+sha256;
+    loadSavedLyrics('lyr:'+name+'|'+size);
     applyMixerMode();
   }catch(err){
     if(err instanceof CancelledError)return;
     console.error(err);
-    setProgress(0,'Error','⚠ '+err.message,'error');
+    setProgress(0,'Error','⚠ '+err.message,'error');setNowTitle(name,'⚠ '+err.message);
   }
 }
+
+/* ---------- Tabs ---------- */
+function switchTab(name){
+  ['import','player'].forEach(t=>{
+    const on=t===name;$('panel-'+t).hidden=!on;
+    const b=$('tab-'+t);b.classList.toggle('active',on);b.setAttribute('aria-selected',on);
+  });
+  if(name==='player'){resizeCanvas();if(analyser&&!isPlaying)_drawFrame();lyrIdx=-2;lyricsTick(true)}
+}
+$('tab-import').addEventListener('click',()=>switchTab('import'));
+$('tab-player').addEventListener('click',()=>switchTab('player'));
+$('open-player-btn').addEventListener('click',()=>switchTab('player'));
+
+/* ---------- Karaoke lyrics ---------- */
+let lyrLines=[],lyrSynced=false,lyrIdx=-2,lyrOffsetMs=0;
+const LRC_RE=/^\s*((?:\[\d+:\d+(?:[.:]\d+)?\]\s*)+)(.*)$/,LRC_TAG=/\[(\d+):(\d+)(?:[.:](\d+))?\]/g;
+function parseLyrics(text){
+  const timed=[],plain=[];
+  String(text||'').split(/\r?\n/).forEach(raw=>{
+    const m=LRC_RE.exec(raw);
+    if(m){
+      const txt=m[2].trim();let t;LRC_TAG.lastIndex=0;
+      while((t=LRC_TAG.exec(m[1]))){
+        const frac=t[3]?+('0.'+t[3]):0;
+        timed.push({t:(+t[1])*60+(+t[2])+frac,text:txt});
+      }
+    }else if(raw.trim()&&!/^\s*\[[a-z]+:.*\]\s*$/i.test(raw))plain.push({t:null,text:raw.trim()});
+  });
+  if(timed.length){timed.sort((a,b)=>a.t-b.t);lyrLines=timed;lyrSynced=true}
+  else{lyrLines=plain;lyrSynced=false}
+}
+function renderLyrics(){
+  const d=$('lyrics-display');lyrIdx=-2;
+  if(!lyrLines.length){d.innerHTML='<div class="lyr-empty">No lyrics yet. Upload an .lrc file or edit lyrics.</div>';return}
+  d.innerHTML=lyrLines.map((l,i)=>`<div class="lyr-line${lyrSynced?'':' unsynced'}" data-i="${i}">${escHtml(l.text)||'&nbsp;'}</div>`).join('');
+  d.scrollTop=0;lyricsTick(true);
+}
+function resetLyrics(){
+  $('lyrics-area').value='';lyrLines=[];lyrSynced=false;setLyricsOffset(0);renderLyrics();setLyricsEditing(false);
+}
+function setLyricsOffset(ms){lyrOffsetMs=ms;$('lyrics-offset').value=ms;$('lyrics-offset-val').textContent=(ms>0?'+':'')+ms+' ms'}
+function setLyricsEditing(on){$('lyrics-edit').style.display=on?'block':'none';$('edit-lyrics-btn').classList.toggle('active',on);$('edit-lyrics-btn').textContent=on?'Done editing':'Edit lyrics'}
+function lyricsTick(force){
+  const dur=trackDuration(),pos=currentPos();
+  if(dur>0&&!_seeking)waveTime.textContent=`${formatTime(pos)} / ${formatTime(dur)}`;
+  if(!lyrSynced||!lyrLines.length||$('panel-player').hidden)return;
+  const p=pos-lyrOffsetMs/1000;
+  let idx=-1;
+  for(let i=0;i<lyrLines.length;i++){if(lyrLines[i].t<=p)idx=i;else break}
+  if(idx===lyrIdx&&!force)return;
+  lyrIdx=idx;
+  const d=$('lyrics-display'),els=d.children;
+  for(let i=0;i<els.length;i++){
+    els[i].classList.toggle('cur',i===idx);
+    els[i].classList.toggle('near',i!==idx&&(i===idx-1||i===idx+1||(idx<0&&i===0)));
+  }
+  const el=els[Math.max(0,idx)];
+  if(el)d.scrollTo({top:el.offsetTop-d.clientHeight/2+el.offsetHeight/2,behavior:force?'auto':'smooth'});
+}
+setInterval(lyricsTick,100);
+$('edit-lyrics-btn').addEventListener('click',()=>setLyricsEditing($('lyrics-edit').style.display!=='block'));
+$('lrc-upload-btn').addEventListener('click',()=>$('lrc-input').click());
+$('lrc-input').addEventListener('change',async function(){
+  const f=this.files[0];this.value='';if(!f)return;
+  try{
+    const ta=$('lyrics-area');ta.value=await f.text();
+    ta.dispatchEvent(new Event('input'));
+  }catch(e){$('now-status').textContent='⚠ Could not read lyrics file: '+e.message}
+});
+$('lyrics-offset').addEventListener('input',function(){
+  setLyricsOffset(+this.value);lyrIdx=-2;
+  if(currentSha)try{localStorage.setItem('lyro:'+currentSha,String(lyrOffsetMs))}catch(_){}
+});
+$('tap-sync-btn').addEventListener('click',()=>{
+  if(!vocalBuffer&&!instBuffer){$('now-status').textContent='Load a song first, then tap along as it plays.';return}
+  const ta=$('lyrics-area'),lines=ta.value.split(/\r?\n/);
+  const i=lines.findIndex(l=>l.trim()&&!LRC_RE.test(l));
+  if(i<0){$('now-status').textContent=lines.some(l=>l.trim())?'All lines are synced.':'Add lyrics first (Edit lyrics), one line per row.';return}
+  const t=Math.max(0,currentPos()-lyrOffsetMs/1000),m=Math.floor(t/60),sec=(t-m*60).toFixed(2).padStart(5,'0');
+  lines[i]=`[${String(m).padStart(2,'0')}:${sec}]${lines[i].trim()}`;
+  ta.value=lines.join('\n');ta.dispatchEvent(new Event('input'));
+  $('now-status').textContent=`Synced line ${i+1}: ${lines[i]}`;
+});
 
 updateSplitAvailability();
 refreshDevices(false);
