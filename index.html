@@ -53,6 +53,7 @@
 <div class="card" id="library-card"><h2>Available Songs</h2><div id="library-list"></div></div>
 <div class="player-main">
 <div class="card" id="now-card"><h2>Now Playing</h2><div id="now-title">No song loaded</div><div id="now-status"></div>
+<button class="icon-btn" id="audio-resume" style="display:none;margin-top:8px;font-size:.85rem;border-color:#f6c667;color:#f6c667">Audio paused - tap to resume</button>
 <div id="waveform-wrap"><canvas id="waveform"></canvas><span id="waveform-time"></span></div>
 <div id="mixer"><div class="playback-row"><button class="play-btn" id="play-btn" disabled>▶ Play</button><button class="icon-btn" id="stop-btn" disabled>■ Stop</button></div><div class="mix-grid"><div class="stem-row"><div class="stem-label vocals" id="vocals-label">🎙 Vocals</div><div class="stem-controls"><input class="vocals-range" type="range" id="vocals-vol" min="0" max="100" value="100"><span class="vol-val" id="vocals-vol-val">100</span></div></div><div class="stem-row" id="inst-row"><div class="stem-label instrumental">🎸 Instrumental</div><div class="stem-controls"><input type="range" id="inst-vol" min="0" max="100" value="100"><span class="vol-val" id="inst-vol-val">100</span></div></div></div><div class="param-row"><div class="param-item"><label>Tempo <span class="param-val" id="tempo-val">1.00×</span></label><input type="range" id="tempo" min=".5" max="2" value="1" step=".05"></div><div class="param-item"><label>Pitch <span class="param-val" id="pitch-val">0 st</span></label><input type="range" id="pitch" min="-12" max="12" value="0"></div></div><p class="hint">Pitch and tempo are linked for now: changing one also changes the other's speed/pitch (Web Audio limitation).</p></div>
 <details id="output-settings"><summary>Output settings</summary><div class="out-body">
@@ -124,9 +125,22 @@ const mixer=$('mixer'),playBtn=$('play-btn'),stopBtn=$('stop-btn');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ---------- Helpers ---------- */
+/* Browsers suspend/interrupt the context (tab hidden, phone call, output change): keep trying to resume. */
+function updateAudioBtn(){$('audio-resume').style.display=audioCtx&&audioCtx.state!=='running'?'inline-block':'none'}
+function keepAudioAlive(){
+  if(audioCtx&&audioCtx.state!=='running')audioCtx.resume().then(updateAudioBtn,updateAudioBtn);
+  updateAudioBtn();
+}
+document.addEventListener('visibilitychange',keepAudioAlive);
+$('audio-resume').addEventListener('click',()=>{if(audioCtx)audioCtx.resume().then(updateAudioBtn,updateAudioBtn)});
+async function ensureRunning(ac){
+  if(ac.state!=='running'){try{await Promise.race([ac.resume(),sleep(1000)])}catch(_){}}
+  updateAudioBtn();
+}
 function getAudioCtx(){
   if(!audioCtx){
     audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    audioCtx.addEventListener('statechange',keepAudioAlive);
     analyser=audioCtx.createAnalyser();analyser.fftSize=2048;
     vocalGain=audioCtx.createGain();instGain=audioCtx.createGain();mixBus=audioCtx.createGain();
     silentOut=audioCtx.createGain();silentOut.gain.value=0;
@@ -429,6 +443,7 @@ playBtn.addEventListener('click',async()=>{
   vocalGain=vocalGain||ac.createGain();instGain=instGain||ac.createGain();
   vocalGain.gain.value=+$('vocals-vol').value/100;
   instGain.gain.value=separated?+$('inst-vol').value/100:0;
+  await ensureRunning(ac);
   const when=ac.currentTime+0.05;   // start both stems on the same tick
   if(vocalBuffer){
     const src=vocalSource=connectStem(vocalBuffer,vocalGain);
@@ -509,6 +524,7 @@ async function restartPlayback(){
   vocalGain.gain.value=+$('vocals-vol').value/100;
   instGain.gain.value=separated?+$('inst-vol').value/100:0;
   if(splitOn)await startSplitElements();
+  await ensureRunning(ac);
   const when=ac.currentTime+0.05;
   if(vocalBuffer){
     const src=vocalSource=connectStem(vocalBuffer,vocalGain);
@@ -953,7 +969,7 @@ function syncRender(){
   $('tempo').disabled=$('pitch').disabled=syncRole==='guest';
 }
 function setMixVol(id,v){const s=$(id);s.value=v;s.dispatchEvent(new Event('input'))}
-let mixApplying=false,sameActive=false,lastSameSeen=false;
+let mixVersion=-1,mixApplying=false,sameActive=false,lastSameSeen=false;
 const MIX_PRESETS={full:[100,100],both:[50,100],inst:[0,100],vocals:[100,0]};
 function applyDeviceMix(){
   const p=MIX_PRESETS[sameActive?'full':$('sync-mix').value];
@@ -1030,7 +1046,7 @@ async function guestApply(st){
   lastState=st;
   const same=st.mix_mode==='same';
   if(same!==lastSameSeen){lastSameSeen=same;sameActive=same}
-  applyDeviceMix();
+  if(st.version!==mixVersion){mixVersion=st.version;applyDeviceMix()}
   if(!gestured){pendingApply=true;syncMsg='tap anywhere to enable audio';syncRender();return}
   if(guestLoading)return;
   if(st.song&&st.song!==currentSha){
@@ -1078,7 +1094,7 @@ function setNudge(n){
   [vocalSource,instSource].forEach(src=>{if(src)src.playbackRate.value=(+$('tempo').value)*(1+n)});
 }
 function syncStart(role,code){
-  syncRole=role;syncCode=code;syncDevices=1;syncVersion=-1;lastState=null;syncMsg='';sameActive=false;lastSameSeen=false;
+  syncRole=role;syncCode=code;syncDevices=1;syncVersion=-1;mixVersion=-1;lastState=null;syncMsg='';sameActive=false;lastSameSeen=false;
   $('sync-code-big').textContent=code;renderQr();syncWakeOn();
   clearInterval(pollTimer);pollTimer=setInterval(roomPoll,1000);
   clearInterval(clockTimer);clockTimer=setInterval(clockSync,15000);
