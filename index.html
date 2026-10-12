@@ -320,7 +320,7 @@ async function separateStems(file,audioBuffer,token,sha256){
     if(sha256){
       setProgress(0,'Checking cache…','Looking up previous separation');
       try{
-        const cacheRes=await fetch(new URL('/api/cache/'+sha256+'?name='+encodeURIComponent(file.name)+'&size='+file.size,SEPARATION_API_URL).href,{cache:'no-store'});
+        const cacheRes=await fetch(new URL('/api/cache/'+sha256+(file.name&&file.size>0?'?name='+encodeURIComponent(file.name)+'&size='+file.size:''),SEPARATION_API_URL).href,{cache:'no-store'});
         if(cacheRes.ok){const cached=await cacheRes.json();if(cached.hit){setProgress(75,'Downloading cached stems…','Found in cache');[vocalBuffer,instBuffer]=await downloadStems(cached,token);separated=true;setProgress(100,'Separation complete','✓ Loaded from cache.','success');applyMixerMode();showImportDone(true);loadLibrary();return;}}
       }catch(_){}
     }
@@ -565,7 +565,7 @@ async function loadLibrary(){
     const songs=await res.json();
     const list=$('library-list');
     if(!songs.length){list.innerHTML='<div class="lib-empty">No songs yet. Import one in the “Import &amp; Split” tab.</div>';return}
-    list.innerHTML=songs.map(s=>`<div class="lib-item" data-sha="${escHtml(s.sha256)}" data-name="${escHtml(s.name)}" data-size="${s.size}"><span class="lib-name">${escHtml(s.name)}</span><span class="lib-meta">${formatMB(s.size)}</span><button class="lib-del" title="Delete">✕</button></div>`).join('');
+    list.innerHTML=songs.map(s=>`<div class="lib-item" data-sha="${escHtml(s.sha256)}" data-name="${escHtml(s.name||'Unnamed song')}" data-size="${s.size}"><span class="lib-name">${escHtml(s.name||'Unnamed song')}</span><span class="lib-meta">${formatMB(s.size)}</span><button class="lib-del" title="Delete">✕</button></div>`).join('');
     highlightLibrary();
     list.querySelectorAll('.lib-item').forEach(el=>{
       el.addEventListener('click',e=>{if(!e.target.classList.contains('lib-del'))loadFromLibrary(el.dataset.sha,el.dataset.name,+el.dataset.size)});

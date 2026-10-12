@@ -386,15 +386,22 @@ def cache_lookup(sha256: str, name: str = "", size: int = 0) -> dict[str, Any]:
     except OSError:
         pass
     meta_path = cache_dir / "meta.json"
-    if not meta_path.exists():
-        # Backfill meta for entries cached before the library feature existed.
-        clean = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()[:200]
-        try:
-            meta_path.write_text(
-                json.dumps({"name": clean, "size": max(0, size), "created": time.time()})
-            )
-        except OSError:
-            log.exception("Failed to backfill meta for %s", sha256)
+    clean = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()[:200]
+    if clean and size > 0:
+        # Backfill meta for entries cached before the library feature, or fix blank ones.
+        old: dict[str, Any] = {}
+        if meta_path.exists():
+            try:
+                old = json.loads(meta_path.read_text())
+            except Exception:
+                old = {}
+        if not old.get("name") or not old.get("size"):
+            try:
+                meta_path.write_text(
+                    json.dumps({"name": clean, "size": size, "created": old.get("created") or time.time()})
+                )
+            except OSError:
+                log.exception("Failed to backfill meta for %s", sha256)
     ext = stems["vocals"].suffix.lstrip(".")
     return {
         "hit": True,
@@ -433,27 +440,20 @@ def library_list() -> list[dict]:
         stems = find_stems(entry)
         if "vocals" not in stems or "instrumental" not in stems:
             continue
-        if not meta_path.exists():
-            try:
-                songs.append(
-                    {
-                        "sha256": entry.name,
-                        "name": f"Unnamed song ({entry.name[:8]})",
-                        "size": sum(p.stat().st_size for p in stems.values()),
-                        "created": entry.stat().st_mtime,
-                    }
-                )
-            except OSError:
-                pass
-            continue
         try:
-            meta = json.loads(meta_path.read_text())
+            meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+            name = meta.get("name") or ""
+            size = meta.get("size") or 0
+            if not name.strip():
+                name = f"Unnamed song ({entry.name[:8]})"
+            if not size:
+                size = sum(p.stat().st_size for p in stems.values())
             songs.append(
                 {
                     "sha256": entry.name,
-                    "name": meta.get("name", ""),
-                    "size": meta.get("size", 0),
-                    "created": meta.get("created", 0),
+                    "name": name,
+                    "size": size,
+                    "created": meta.get("created") or entry.stat().st_mtime,
                 }
             )
         except Exception:
