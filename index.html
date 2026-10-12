@@ -69,7 +69,7 @@
 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px"><button class="icon-btn" id="sync-host" style="font-size:.85rem">Host room</button><input id="sync-code" maxlength="4" placeholder="CODE" autocomplete="off" style="width:78px;text-transform:uppercase;text-align:center;letter-spacing:.15em;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px"><button class="icon-btn" id="sync-join" style="font-size:.85rem">Join room</button><button class="icon-btn" id="sync-leave" style="font-size:.85rem;display:none">Leave</button></div>
 <div class="hint" id="sync-status">Not in a room.</div>
 <div id="sync-share" style="display:none;margin-top:10px"><div style="font-size:1.6rem;font-weight:700;letter-spacing:.25em" id="sync-code-big"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="icon-btn" id="sync-copy" style="font-size:.85rem">Copy link</button><button class="icon-btn" id="sync-share-btn" style="font-size:.85rem;display:none">Share…</button></div><div id="sync-qr" style="margin-top:10px;display:inline-block;background:#fff;padding:6px;border-radius:8px;line-height:0"></div></div>
-<div class="select-row" style="margin-top:12px"><label for="sync-mix">Device mix</label><select id="sync-mix"><option value="full">Full mix</option><option value="inst">Instrumental only</option><option value="both">Vocals + instrumental</option></select></div>
+<div class="select-row" style="margin-top:12px"><label for="sync-mix">Device mix</label><select id="sync-mix"><option value="full">Full mix</option><option value="inst">Instrumental only</option><option value="both">Vocals + instrumental</option><option value="vocals">Vocals only</option><option value="custom">Custom</option></select></div>
 <label class="toggle-row" id="sync-same-row" style="display:none"><input type="checkbox" id="sync-same"><span>Same mix on all devices</span></label>
 </div>
 </div></details></div>
@@ -939,22 +939,38 @@ const syncDeviceId=(()=>{let id='';try{id=localStorage.getItem('deviceId')||''}c
 try{const m=localStorage.getItem('deviceMix');if(m)$('sync-mix').value=m;if(!$('sync-mix').value)$('sync-mix').value='full'}catch(_){}
 function syncRender(){
   const st=$('sync-status');
-  if(!syncCode){st.textContent=syncMsg||'Not in a room.';$('sync-share').style.display='none';$('sync-leave').style.display='none';$('sync-same-row').style.display='none';return}
+  if(!syncCode){st.textContent=syncMsg||'Not in a room.';$('sync-share').style.display='none';$('sync-leave').style.display='none';$('sync-same-row').style.display='none';$('tempo').disabled=$('pitch').disabled=false;return}
   const off=Math.round(clockOffset);
   st.textContent=`${syncRole==='host'?'Host':'Guest'} · room ${syncCode} · ${syncDevices} device${syncDevices===1?'':'s'} · clock ${off>=0?'+':''}${off} ms (±${Math.round(clockRtt/2)})`+(syncMsg?' · '+syncMsg:'');
   $('sync-share').style.display='block';$('sync-leave').style.display='';
   $('sync-same-row').style.display=syncRole==='host'?'flex':'none';
+  $('tempo').disabled=$('pitch').disabled=syncRole==='guest';
 }
 function setMixVol(id,v){const s=$(id);s.value=v;s.dispatchEvent(new Event('input'))}
-function applyDeviceMix(same){
-  const mode=same?'full':$('sync-mix').value;
-  if(mode==='full'){setMixVol('vocals-vol',100);setMixVol('inst-vol',100)}
-  else if(mode==='inst'){setMixVol('vocals-vol',0);setMixVol('inst-vol',100)}
+let mixApplying=false,sameActive=false,lastSameSeen=false;
+const MIX_PRESETS={full:[100,100],both:[50,100],inst:[0,100],vocals:[100,0]};
+function applyDeviceMix(){
+  const p=MIX_PRESETS[sameActive?'full':$('sync-mix').value];
+  if(!p)return;
+  mixApplying=true;
+  try{setMixVol('vocals-vol',p[0]);setMixVol('inst-vol',p[1])}finally{mixApplying=false}
 }
+['vocals-vol','inst-vol'].forEach(id=>$(id).addEventListener('input',()=>{
+  if(mixApplying)return;
+  sameActive=false;$('sync-mix').value='custom';
+  try{localStorage.setItem('deviceMix','custom')}catch(_){}
+}));
 function shareUrl(){return location.origin+location.pathname+'?room='+syncCode}
 function renderQr(){
   const el=$('sync-qr');el.innerHTML='';
-  try{const q=qrcode(0,'M');q.addData(shareUrl());q.make();el.innerHTML=q.createSvgTag({cellSize:4,margin:0});el.style.display='inline-block'}catch(_){el.style.display='none'}
+  try{
+    const q=qrcode(0,'M');q.addData(shareUrl());q.make();
+    const n=q.getModuleCount(),quiet=4,sc=Math.max(1,Math.floor(200/(n+2*quiet))),size=(n+2*quiet)*sc;
+    const cv=document.createElement('canvas');cv.width=cv.height=size;cv.style.cssText='display:block;image-rendering:pixelated;width:'+size+'px;height:'+size+'px';
+    const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,size,size);c.fillStyle='#000';
+    for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))c.fillRect((k+quiet)*sc,(r+quiet)*sc,sc,sc);
+    el.appendChild(cv);el.style.cssText='margin-top:10px;display:inline-block;background:#fff;padding:0;border-radius:4px;line-height:0';
+  }catch(_){el.style.cssText='margin-top:10px;display:block;line-height:1.3;font-size:.74rem;color:var(--muted);word-break:break-all';el.textContent='QR unavailable. Link: '+shareUrl()}
 }
 async function clockSync(){
   let best=null;
@@ -1004,12 +1020,14 @@ function syncPlayAt(pos){
 }
 async function guestApply(st){
   lastState=st;
-  applyDeviceMix(st.mix_mode==='same');
+  const same=st.mix_mode==='same';
+  if(same!==lastSameSeen){lastSameSeen=same;sameActive=same}
+  applyDeviceMix();
   if(!gestured){pendingApply=true;syncMsg='tap anywhere to enable audio';syncRender();return}
   if(guestLoading)return;
   if(st.song&&st.song!==currentSha){
     guestLoading=true;
-    try{await _loadFromLibraryOrig(st.song,st.name||'Shared song',0)}finally{guestLoading=false}
+    try{await _loadFromLibraryOrig(st.song,st.name||'Shared song',0);applyDeviceMix()}finally{guestLoading=false}
     return guestApply(lastState);
   }
   if(!vocalBuffer&&!instBuffer)return;
@@ -1043,7 +1061,7 @@ async function roomPoll(){
   finally{polling=false;syncRender()}
 }
 function syncStart(role,code){
-  syncRole=role;syncCode=code;syncDevices=1;syncVersion=-1;lastState=null;syncMsg='';
+  syncRole=role;syncCode=code;syncDevices=1;syncVersion=-1;lastState=null;syncMsg='';sameActive=false;lastSameSeen=false;
   $('sync-code-big').textContent=code;renderQr();syncWakeOn();
   clearInterval(pollTimer);pollTimer=setInterval(roomPoll,1000);
   clearInterval(clockTimer);clockTimer=setInterval(clockSync,30000);
@@ -1060,7 +1078,7 @@ function syncStart(role,code){
 }
 function syncLeave(msg){
   clearInterval(pollTimer);clearInterval(clockTimer);clearInterval(driftTimer);clearTimeout(hostTimer);clearTimeout(playTimer);
-  hostPending=false;pendingApply=false;syncRole='';syncCode='';syncWakeOff();$('sync-same').checked=false;
+  hostPending=false;pendingApply=false;syncRole='';syncCode='';syncWakeOff();$('sync-same').checked=false;sameActive=false;lastSameSeen=false;
   syncMsg=typeof msg==='string'?msg:'';syncRender();
 }
 async function hostRoom(){
@@ -1072,7 +1090,7 @@ async function hostRoom(){
     if(!r.ok)throw new Error(r.status===503?'too many rooms, try later':'could not create room');
     const d=await r.json();
     await clockSync();
-    syncStart('host',d.code);applyDeviceMix(false);
+    syncStart('host',d.code);applyDeviceMix();
     if(currentSha)postRoomState(false,pauseOffset,2000);
   }catch(err){syncMsg=err.message||'could not create room';syncRender()}
 }
@@ -1105,10 +1123,11 @@ if(navigator.share){
 }
 $('sync-mix').addEventListener('change',function(){
   try{localStorage.setItem('deviceMix',this.value)}catch(_){}
-  applyDeviceMix(syncRole==='host'?$('sync-same').checked:lastState?.mix_mode==='same');
+  sameActive=false;applyDeviceMix();
 });
 $('sync-same').addEventListener('change',()=>{
-  applyDeviceMix($('sync-same').checked);
+  if(syncRole!=='host')return;
+  sameActive=$('sync-same').checked;applyDeviceMix();
   if(syncRole==='host')postRoomState(isPlaying,isPlaying?currentPos():pauseOffset,0);
 });
 // Host: intercept transport controls so every device starts together at start_at.
@@ -1155,7 +1174,9 @@ loadFromLibrary=async function(sha256,name,size){
     currentSha=sha256;$('now-title').textContent=name;
     postRoomState(false,0,2000);
   }
-  return _loadFromLibraryOrig(sha256,name,size);
+  const r=await _loadFromLibraryOrig(sha256,name,size);
+  applyDeviceMix();
+  return r;
 };
 
 updateSplitAvailability();
