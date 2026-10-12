@@ -25,6 +25,17 @@
 .lyr-line{font-size:1.1rem;line-height:1.5;padding:6px 0;color:var(--muted);opacity:.35;transition:all .35s ease;overflow-wrap:anywhere}.lyr-line.near{opacity:.6;font-size:1.25rem}.lyr-line.cur{opacity:1;color:#fff;font-weight:700;font-size:clamp(1.5rem,4vw,2.3rem);text-shadow:0 0 18px rgba(102,126,234,.7)}.lyr-line.unsynced{opacity:.9;color:var(--text)}.lyr-empty{color:var(--muted);font-size:.95rem;padding:0 8px}
 .lyr-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}.lyr-offset{flex:1;min-width:180px}.lyr-offset label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}.lyr-offset input{width:100%}#lyrics-edit{display:none;margin-top:12px}#lyrics-edit .hint{margin:8px 0 0}#edit-lyrics-btn.active{border-color:var(--accent);color:var(--accent)}
 #sync-editor{display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px}.ed-legend{font-size:.76rem;color:var(--muted);line-height:1.7;margin-bottom:10px}.ed-legend b{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0 5px;color:var(--text)}#ed-list{max-height:280px;overflow-y:auto;background:var(--surface2);border-radius:8px}.ed-row{display:flex;gap:12px;align-items:center;padding:7px 10px;cursor:pointer;border-left:3px solid transparent}.ed-row.sel{background:rgba(102,126,234,.22);border-left-color:var(--accent)}.ed-ts{font-family:ui-monospace,Menlo,monospace;font-size:.82rem;color:var(--accent);min-width:78px;text-decoration:underline dotted}.ed-ts.empty{color:var(--muted);text-decoration:none}.ed-text{flex:1;min-width:0;overflow-wrap:anywhere}.ed-text.blank{color:var(--muted);font-style:italic}.ed-row input{flex:1;min-width:0;background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font:inherit}
+.lyr-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}.lyr-head h2{margin:0}
+#karaoke{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;background:radial-gradient(ellipse at 50% 40%,#1d1f4a 0%,#0b0b1a 70%);color:#fff;overflow:hidden;--kf:1}#karaoke[hidden]{display:none}#karaoke.k-hide{cursor:none}
+#k-title{text-align:center;font-size:clamp(.75rem,min(2vw,3.2vh),1rem);color:var(--muted);padding:max(10px,2vh) 16px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#k-stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(.4rem,2.2vh,1.4rem);padding:0 5vw;text-align:center}#k-stage[hidden]{display:none}
+.k-line{max-width:100%;overflow-wrap:anywhere;line-height:1.2;transition:opacity .45s ease,transform .45s ease}
+.k-prev{font-size:calc(clamp(1rem,min(3.2vw,5.5vh),2rem)*var(--kf));opacity:.3}.k-next{font-size:calc(clamp(1.1rem,min(3.8vw,6.5vh),2.4rem)*var(--kf));opacity:.55}.k-next2{opacity:.28}
+.k-cur{--p:0%;display:inline-block;min-height:1.2em;font-weight:800;font-size:calc(clamp(1.7rem,min(7vw,13vh),5rem)*var(--kf));background:linear-gradient(90deg,#fff var(--p),rgba(255,255,255,.28) var(--p));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 14px rgba(102,126,234,.85));animation:kPop .5s ease}
+@keyframes kPop{from{opacity:.2;transform:translateY(.4em) scale(.96)}to{opacity:1;transform:none}}
+#k-plain{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:8vh 6vw;text-align:center;font-size:calc(clamp(1.3rem,min(4.5vw,8vh),3rem)*var(--kf));line-height:1.5;overflow-wrap:anywhere}#k-plain::-webkit-scrollbar{display:none}#k-plain[hidden]{display:none}#k-plain div{padding:.2em 0}
+#k-bar{background:linear-gradient(transparent,rgba(0,0,0,.75));padding:14px max(16px,3vw) max(14px,env(safe-area-inset-bottom));transition:opacity .4s ease,transform .4s ease}#karaoke.k-hide #k-bar{opacity:0;transform:translateY(20px);pointer-events:none}
+.k-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}.k-row:first-child{margin-top:0;flex-wrap:nowrap}.k-time{font-size:.8rem;color:var(--muted);min-width:38px;text-align:center}#k-seek{flex:1}.k-vol{display:flex;align-items:center;gap:6px;flex:1;min-width:120px}.k-font{display:flex;gap:6px}#k-bar .play-btn{padding:8px 18px;white-space:nowrap}
 @media(max-width:800px){.player-grid{grid-template-columns:minmax(0,1fr)}.mix-grid{grid-template-columns:1fr}h1{font-size:1.4rem;margin-bottom:18px}.card{padding:16px}}
 </style>
 <script>window.SEPARATION_API_URL='https://karaoke-api.tradeiq.qd.je/api/separate';</script>
@@ -54,13 +65,20 @@
 </div>
 <div id="bt-status"></div>
 </div></details></div>
-<div class="card" id="lyrics-card"><h2>Lyrics</h2>
+<div class="card" id="lyrics-card"><div class="lyr-head"><h2>Lyrics</h2><button class="icon-btn" id="karaoke-btn" title="Full-screen karaoke mode">⛶ Karaoke mode</button></div>
 <div id="lyrics-display"><div class="lyr-empty">No lyrics yet. Upload an .lrc file or edit lyrics.</div></div>
 <div class="lyr-toolbar"><button class="icon-btn" id="lrc-upload-btn">Upload .lrc</button><input id="lrc-input" type="file" accept=".lrc,.txt,text/plain" hidden><button class="icon-btn" id="edit-lyrics-btn">Edit lyrics</button><button class="icon-btn" id="tap-sync-btn" title="Play the song, then tap as each line starts">Tap to sync</button><button class="icon-btn" id="sync-editor-btn">Sync editor</button><div class="lyr-offset"><label for="lyrics-offset">Offset <span id="lyrics-offset-val">0 ms</span></label><input type="range" id="lyrics-offset" min="-5000" max="5000" step="50" value="0"></div></div>
 <div id="lyrics-edit"><textarea id="lyrics-area" placeholder="Paste or type lyrics here (plain text or LRC with [mm:ss.xx] stamps)…"></textarea><p class="hint" id="tap-hint">Tap to sync: type one lyric per line, press Play, then press “Tap to sync” as each line starts. It adds a timestamp to the next unstamped line.</p></div>
 <div id="sync-editor"><div class="ed-legend"><b>R</b> stamp &amp; next · <b>↑/↓</b> select · <b>T</b> new line below · <b>Y</b> blank timed line · <b>E</b> edit · <b>Del</b> clear time · <b>K</b>/<b>Space</b> play/pause · <b>←/→</b> seek 5s (Shift 15s)</div><div id="ed-list"></div><div class="lyr-toolbar"><button class="icon-btn" id="ed-download">Download .lrc</button><button class="play-btn" id="ed-done" style="padding:8px 22px">Done</button></div></div></div>
 </div></div>
 </section>
+</div>
+<div id="karaoke" hidden>
+<div id="k-title"></div>
+<div id="k-stage"><div class="k-line k-prev" id="k-prev"></div><div class="k-line k-cur" id="k-cur"></div><div class="k-line k-next" id="k-n1"></div><div class="k-line k-next k-next2" id="k-n2"></div></div>
+<div id="k-plain" hidden></div>
+<div id="k-bar"><div class="k-row"><button class="play-btn" id="k-play">▶ Play</button><span class="k-time" id="k-pos">0:00</span><input type="range" id="k-seek" min="0" max="1000" value="0"><span class="k-time" id="k-dur">0:00</span></div>
+<div class="k-row"><label class="k-vol">🎙<input class="vocals-range" type="range" id="k-vocals" min="0" max="100" value="100"></label><label class="k-vol">🎸<input type="range" id="k-inst" min="0" max="100" value="100"></label><span class="k-font"><button class="icon-btn" id="k-fdown" title="Smaller text">A−</button><button class="icon-btn" id="k-fup" title="Larger text">A+</button></span><button class="icon-btn" id="k-fs" title="Toggle fullscreen (F)">⛶</button><button class="icon-btn" id="k-exit" title="Exit (Esc)">✕ Exit</button></div></div>
 </div>
 <script>
 /* ---------- Config ---------- */
@@ -802,10 +820,105 @@ document.addEventListener('keydown',e=>{
     if(!vocalBuffer&&!instBuffer)return;
     e.preventDefault();seekBy((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?15:5));return;
   }
-  if(edOpen&&!e.shiftKey&&edKey(e))e.preventDefault();
+  if(edOpen&&!kOpen&&!e.shiftKey&&edKey(e))e.preventDefault();
 });
 // Release slider focus after a drag so arrow keys keep seeking instead of nudging the slider.
 document.addEventListener('pointerup',()=>{const a=document.activeElement;if(a&&a.tagName==='INPUT'&&a.type==='range')a.blur()});
+
+/* ---------- Karaoke mode ---------- */
+const kEl=$('karaoke'),kCur=$('k-cur'),kPrev=$('k-prev'),kN1=$('k-n1'),kN2=$('k-n2'),kStage=$('k-stage'),kPlain=$('k-plain'),kSeek=$('k-seek');
+let kOpen=false,kRaf=0,kIdx=-2,kSeeking=false,kHideT=null,kKeepOpen=false,kWake=null,kLinesRef=null,kSyncRef=null,kScale=1,kTitle='';
+try{kScale=parseFloat(localStorage.getItem('karaokeFont'))||1}catch(_){}
+function kSetScale(v){kScale=Math.max(.6,Math.min(2,Math.round(v*10)/10));kEl.style.setProperty('--kf',kScale);try{localStorage.setItem('karaokeFont',String(kScale))}catch(_){}}
+kSetScale(kScale);
+const kTxt=l=>l?(l.text||'♪'):'';
+const kFsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+function kBuild(){   // lyrics changed: pick stage (synced) or plain scroller
+  kLinesRef=lyrLines;kSyncRef=lyrSynced;kIdx=-2;
+  const synced=lyrSynced&&lyrLines.length>0;
+  kStage.hidden=!synced;kPlain.hidden=synced;
+  if(!synced)kPlain.innerHTML=lyrLines.length?lyrLines.map(l=>`<div>${escHtml(l.text)}</div>`).join(''):'<div style="color:var(--muted)">No lyrics yet</div>';
+}
+function kRenderLines(idx){
+  kPrev.textContent=kTxt(lyrLines[idx-1]);kCur.textContent=idx>=0?kTxt(lyrLines[idx]):'';
+  kN1.textContent=kTxt(lyrLines[idx+1]);kN2.textContent=kTxt(lyrLines[idx+2]);
+  kCur.style.animation='none';void kCur.offsetWidth;kCur.style.animation='';
+}
+function kTick(){
+  if(!kOpen)return;kRaf=requestAnimationFrame(kTick);
+  const dur=trackDuration(),pos=currentPos();
+  if(kLinesRef!==lyrLines||kSyncRef!==lyrSynced)kBuild();
+  if(!kStage.hidden){
+    const p=pos-lyrOffsetMs/1000;let idx=-1;
+    for(let i=0;i<lyrLines.length;i++){if(lyrLines[i].t<=p)idx=i;else break}
+    if(idx!==kIdx){kIdx=idx;kRenderLines(idx)}
+    let f=0;
+    if(idx>=0){const t0=lyrLines[idx].t,t1=idx+1<lyrLines.length?lyrLines[idx+1].t:t0+5;f=t1>t0?Math.max(0,Math.min(1,(p-t0)/(t1-t0))):1}
+    kCur.style.setProperty('--p',(f*100).toFixed(1)+'%');
+  }else if(dur>0)kPlain.scrollTop=(pos/dur)*Math.max(0,kPlain.scrollHeight-kPlain.clientHeight);
+  const title=$('now-title').textContent;if(title!==kTitle){kTitle=title;$('k-title').textContent=title}
+  $('k-play').textContent=playBtn.textContent;$('k-play').disabled=playBtn.disabled;
+  $('k-inst').disabled=$('inst-vol').disabled;
+  $('k-dur').textContent=formatTime(dur);
+  if(!kSeeking){$('k-pos').textContent=formatTime(pos);kSeek.value=dur>0?Math.round(pos/dur*1000):0}
+}
+function kArm(){clearTimeout(kHideT);kHideT=setTimeout(kHide,3000)}
+function kHide(){if(!kOpen)return;if(kSeeking||$('k-bar').matches(':hover')){kArm();return}kEl.classList.add('k-hide')}
+function kShow(){kEl.classList.remove('k-hide');kArm()}
+['mousemove','pointerdown','touchstart'].forEach(ev=>kEl.addEventListener(ev,kShow,{passive:true}));
+async function kWakeOn(){
+  try{
+    if(!navigator.wakeLock||kWake)return;
+    const w=await navigator.wakeLock.request('screen');
+    if(!kOpen){w.release().catch(()=>{});return}
+    kWake=w;w.addEventListener('release',()=>{if(kWake===w)kWake=null});
+  }catch(_){}
+}
+function kWakeOff(){try{if(kWake)kWake.release().catch(()=>{})}catch(_){}kWake=null}
+document.addEventListener('visibilitychange',()=>{if(kOpen&&document.visibilityState==='visible')kWakeOn()});
+function kEnterFs(){try{const f=kEl.requestFullscreen||kEl.webkitRequestFullscreen;if(f){const r=f.call(kEl);if(r&&r.catch)r.catch(()=>{})}}catch(_){}}
+function kToggleFs(){
+  if(kFsEl()){kKeepOpen=true;try{(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(_){kKeepOpen=false}}
+  else kEnterFs();
+}
+function openKaraoke(){
+  if(kOpen)return;kOpen=true;kEl.hidden=false;document.body.style.overflow='hidden';
+  $('k-vocals').value=$('vocals-vol').value;$('k-inst').value=$('inst-vol').value;
+  kLinesRef=null;kTitle='';kShow();kEnterFs();kWakeOn();kRaf=requestAnimationFrame(kTick);
+}
+function closeKaraoke(){
+  if(!kOpen)return;kOpen=false;cancelAnimationFrame(kRaf);clearTimeout(kHideT);
+  kEl.hidden=true;document.body.style.overflow='';kWakeOff();
+  if(kFsEl()){try{(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(_){}}
+  lyrIdx=-2;lyricsTick(true);
+}
+function kFsChange(){
+  if(!kFsEl()&&kOpen){if(kKeepOpen)kKeepOpen=false;else closeKaraoke()}
+}
+document.addEventListener('fullscreenchange',kFsChange);document.addEventListener('webkitfullscreenchange',kFsChange);
+$('karaoke-btn').addEventListener('click',openKaraoke);
+$('k-exit').addEventListener('click',closeKaraoke);
+$('k-fs').addEventListener('click',kToggleFs);
+$('k-play').addEventListener('click',()=>{if(!playBtn.disabled)playBtn.click()});
+$('k-fdown').addEventListener('click',()=>kSetScale(kScale-.1));
+$('k-fup').addEventListener('click',()=>kSetScale(kScale+.1));
+[['k-vocals','vocals-vol'],['k-inst','inst-vol']].forEach(([k,o])=>$(k).addEventListener('input',function(){const src=$(o);src.value=this.value;src.dispatchEvent(new Event('input'))}));
+kSeek.addEventListener('pointerdown',()=>{kSeeking=true});
+['pointerup','pointercancel'].forEach(ev=>kSeek.addEventListener(ev,()=>setTimeout(()=>{kSeeking=false},60)));
+kSeek.addEventListener('input',()=>{$('k-pos').textContent=formatTime(kSeek.value/1000*trackDuration())});
+kSeek.addEventListener('change',()=>{const t=kSeek.value/1000*trackDuration();kSeeking=false;queueSeek(()=>seekTo(t))});
+// Capture phase so Space/Esc/F never reach the sync-editor shortcuts or a focused button.
+document.addEventListener('keydown',e=>{
+  if(!kOpen||e.ctrlKey||e.metaKey||e.altKey)return;
+  kShow();
+  if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();closeKaraoke()}
+  else if((e.key==='f'||e.key==='F')&&!e.repeat){e.preventDefault();e.stopImmediatePropagation();kToggleFs()}
+  else if(e.key===' '||e.key==='Spacebar'){
+    e.preventDefault();e.stopImmediatePropagation();
+    const a=document.activeElement;if(a&&a.tagName==='BUTTON')a.blur();
+    if(!e.repeat&&!playBtn.disabled)playBtn.click();
+  }
+},true);
 
 updateSplitAvailability();
 refreshDevices(false);
