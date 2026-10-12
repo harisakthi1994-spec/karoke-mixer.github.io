@@ -581,3 +581,124 @@ def result_file(job_id: str, stem_name: str):
         filename=stem_name,
         headers={"Cache-Control": "private, max-age=3600"},
     )
+
+
+# ---- Sync rooms (in-memory, polled) ----
+ROOMS: dict[str, dict[str, Any]] = {}
+ROOMS_LOCK = threading.Lock()
+ROOM_TTL_SECONDS = 6 * 3600
+ROOM_MAX = 100
+DEVICE_WINDOW_SECONDS = 6
+MIX_MODES = {"device", "same"}
+
+
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def purge_rooms() -> None:
+    # Caller holds ROOMS_LOCK.
+    cutoff = time.time() - ROOM_TTL_SECONDS
+    for code in [c for c, r in ROOMS.items() if r["touched"] < cutoff]:
+        del ROOMS[code]
+
+
+def room_state(room: dict[str, Any]) -> dict[str, Any]:
+    return {k: room[k] for k in ("song", "name", "playing", "position", "start_at", "mix_mode", "version")}
+
+
+@app.get("/api/time")
+def server_time() -> dict[str, int]:
+    return {"t": now_ms()}
+
+
+@app.post("/api/rooms")
+def room_create() -> dict[str, Any]:
+    import random
+    import string
+
+    with ROOMS_LOCK:
+        purge_rooms()
+        if len(ROOMS) >= ROOM_MAX:
+            raise HTTPException(status_code=503, detail="Too many active rooms")
+        code = "".join(random.choices(string.ascii_uppercase, k=4))
+        while code in ROOMS:
+            code = "".join(random.choices(string.ascii_uppercase, k=4))
+        ROOMS[code] = {
+            "song": None,
+            "name": "",
+            "playing": False,
+            "position": 0.0,
+            "start_at": now_ms(),
+            "mix_mode": "device",
+            "version": 0,
+            "touched": time.time(),
+            "seen": {},
+        }
+        return {"code": code, "state": room_state(ROOMS[code])}
+
+
+@app.get("/api/rooms/{code}")
+def room_get(code: str, id: str = "") -> dict[str, Any]:
+    with ROOMS_LOCK:
+        purge_rooms()
+        room = ROOMS.get(code.upper())
+        if room is None:
+            raise HTTPException(status_code=404, detail="Room not found")
+        now = time.time()
+        room["touched"] = now
+        if id:
+            room["seen"][id[:64]] = now
+        room["seen"] = {d: t for d, t in room["seen"].items() if now - t <= DEVICE_WINDOW_SECONDS}
+        return {
+            "code": code.upper(),
+            "state": room_state(room),
+            "server_now": now_ms(),
+            "devices": len(room["seen"]),
+        }
+
+
+@app.post("/api/rooms/{code}/state")
+async def room_set_state(code: str, request: Request) -> dict[str, Any]:
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Invalid body")
+
+    song = body.get("song")
+    if song is not None and not (isinstance(song, str) and SHA256_RE.match(song)):
+        raise HTTPException(status_code=400, detail="Invalid song")
+    name = body.get("name", "")
+    if not isinstance(name, str):
+        raise HTTPException(status_code=400, detail="Invalid name")
+    playing = body.get("playing")
+    if not isinstance(playing, bool):
+        raise HTTPException(status_code=400, detail="Invalid playing")
+    position = body.get("position")
+    if isinstance(position, bool) or not isinstance(position, (int, float)) or not position >= 0:
+        raise HTTPException(status_code=400, detail="Invalid position")
+    start_at = body.get("start_at")
+    if isinstance(start_at, bool) or not isinstance(start_at, (int, float)):
+        raise HTTPException(status_code=400, detail="Invalid start_at")
+    mix_mode = body.get("mix_mode")
+    if mix_mode not in MIX_MODES:
+        raise HTTPException(status_code=400, detail="Invalid mix_mode")
+
+    with ROOMS_LOCK:
+        purge_rooms()
+        room = ROOMS.get(code.upper())
+        if room is None:
+            raise HTTPException(status_code=404, detail="Room not found")
+        room.update(
+            song=song,
+            name=name[:200],
+            playing=playing,
+            position=float(position),
+            start_at=int(start_at),
+            mix_mode=mix_mode,
+        )
+        room["version"] += 1
+        room["touched"] = time.time()
+        return room_state(room)
