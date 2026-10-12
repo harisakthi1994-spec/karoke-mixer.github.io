@@ -24,6 +24,7 @@
 #lyrics-display{position:relative;height:clamp(260px,48vh,480px);overflow-y:auto;scrollbar-width:none;background:var(--surface2);border-radius:10px;padding:calc(clamp(260px,48vh,480px)/2 - 30px) 16px;text-align:center}#lyrics-display::-webkit-scrollbar{display:none}
 .lyr-line{font-size:1.1rem;line-height:1.5;padding:6px 0;color:var(--muted);opacity:.35;transition:all .35s ease;overflow-wrap:anywhere}.lyr-line.near{opacity:.6;font-size:1.25rem}.lyr-line.cur{opacity:1;color:#fff;font-weight:700;font-size:clamp(1.5rem,4vw,2.3rem);text-shadow:0 0 18px rgba(102,126,234,.7)}.lyr-line.unsynced{opacity:.9;color:var(--text)}.lyr-empty{color:var(--muted);font-size:.95rem;padding:0 8px}
 .lyr-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}.lyr-offset{flex:1;min-width:180px}.lyr-offset label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:4px}.lyr-offset input{width:100%}#lyrics-edit{display:none;margin-top:12px}#lyrics-edit .hint{margin:8px 0 0}#edit-lyrics-btn.active{border-color:var(--accent);color:var(--accent)}
+#sync-editor{display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px}.ed-legend{font-size:.76rem;color:var(--muted);line-height:1.7;margin-bottom:10px}.ed-legend b{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0 5px;color:var(--text)}#ed-list{max-height:280px;overflow-y:auto;background:var(--surface2);border-radius:8px}.ed-row{display:flex;gap:12px;align-items:center;padding:7px 10px;cursor:pointer;border-left:3px solid transparent}.ed-row.sel{background:rgba(102,126,234,.22);border-left-color:var(--accent)}.ed-ts{font-family:ui-monospace,Menlo,monospace;font-size:.82rem;color:var(--accent);min-width:78px;text-decoration:underline dotted}.ed-ts.empty{color:var(--muted);text-decoration:none}.ed-text{flex:1;min-width:0;overflow-wrap:anywhere}.ed-text.blank{color:var(--muted);font-style:italic}.ed-row input{flex:1;min-width:0;background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font:inherit}
 @media(max-width:800px){.player-grid{grid-template-columns:minmax(0,1fr)}.mix-grid{grid-template-columns:1fr}h1{font-size:1.4rem;margin-bottom:18px}.card{padding:16px}}
 </style>
 <script>window.SEPARATION_API_URL='https://karaoke-api.tradeiq.qd.je/api/separate';</script>
@@ -55,8 +56,9 @@
 </div></details></div>
 <div class="card" id="lyrics-card"><h2>Lyrics</h2>
 <div id="lyrics-display"><div class="lyr-empty">No lyrics yet. Upload an .lrc file or edit lyrics.</div></div>
-<div class="lyr-toolbar"><button class="icon-btn" id="lrc-upload-btn">Upload .lrc</button><input id="lrc-input" type="file" accept=".lrc,.txt,text/plain" hidden><button class="icon-btn" id="edit-lyrics-btn">Edit lyrics</button><button class="icon-btn" id="tap-sync-btn" title="Play the song, then tap as each line starts">Tap to sync</button><div class="lyr-offset"><label for="lyrics-offset">Offset <span id="lyrics-offset-val">0 ms</span></label><input type="range" id="lyrics-offset" min="-5000" max="5000" step="50" value="0"></div></div>
-<div id="lyrics-edit"><textarea id="lyrics-area" placeholder="Paste or type lyrics here (plain text or LRC with [mm:ss.xx] stamps)…"></textarea><p class="hint" id="tap-hint">Tap to sync: type one lyric per line, press Play, then press “Tap to sync” as each line starts. It adds a timestamp to the next unstamped line.</p></div></div>
+<div class="lyr-toolbar"><button class="icon-btn" id="lrc-upload-btn">Upload .lrc</button><input id="lrc-input" type="file" accept=".lrc,.txt,text/plain" hidden><button class="icon-btn" id="edit-lyrics-btn">Edit lyrics</button><button class="icon-btn" id="tap-sync-btn" title="Play the song, then tap as each line starts">Tap to sync</button><button class="icon-btn" id="sync-editor-btn">Sync editor</button><div class="lyr-offset"><label for="lyrics-offset">Offset <span id="lyrics-offset-val">0 ms</span></label><input type="range" id="lyrics-offset" min="-5000" max="5000" step="50" value="0"></div></div>
+<div id="lyrics-edit"><textarea id="lyrics-area" placeholder="Paste or type lyrics here (plain text or LRC with [mm:ss.xx] stamps)…"></textarea><p class="hint" id="tap-hint">Tap to sync: type one lyric per line, press Play, then press “Tap to sync” as each line starts. It adds a timestamp to the next unstamped line.</p></div>
+<div id="sync-editor"><div class="ed-legend"><b>R</b> stamp &amp; next · <b>↑/↓</b> select · <b>T</b> new line below · <b>Y</b> blank timed line · <b>E</b> edit · <b>Del</b> clear time · <b>K</b>/<b>Space</b> play/pause · <b>←/→</b> seek 5s (Shift 15s)</div><div id="ed-list"></div><div class="lyr-toolbar"><button class="icon-btn" id="ed-download">Download .lrc</button><button class="play-btn" id="ed-done" style="padding:8px 22px">Done</button></div></div></div>
 </div></div>
 </section>
 </div>
@@ -438,6 +440,7 @@ $('tempo').addEventListener('input',function(){
 $('lyrics-area').addEventListener('input',function(){
   if(lyrKey)try{localStorage.setItem(lyrKey,this.value)}catch(_){}
   parseLyrics(this.value);renderLyrics();
+  if(edOpen&&!edWriting)edLoad();
 });
 outputSelect.addEventListener('change',applyOutputDevice);
 $('refresh-devices').addEventListener('click',()=>refreshDevices(true));
@@ -463,10 +466,13 @@ canvas.addEventListener('pointermove',e=>{
 async function _commitSeek(){
   if(!_seeking)return;_seeking=false;
   if(!isPlaying){_drawFrame();return}
+  await restartPlayback();
+}
+/* Restart playback from pauseOffset (keeps tempo, split outputs and delays). */
+async function restartPlayback(){
   const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
   stopSyncTest();
-  const wasPlaying=isPlaying;stopPlayback();
-  if(!wasPlaying)return;
+  stopPlayback();
   const dur=trackDuration();if(pauseOffset>=dur-0.05)pauseOffset=0;
   vocalGain=vocalGain||ac.createGain();instGain=instGain||ac.createGain();
   vocalGain.gain.value=+$('vocals-vol').value/100;
@@ -485,6 +491,15 @@ async function _commitSeek(){
   startTime=when;playRate=currentRate();isPlaying=true;
   playBtn.textContent='⏸ Pause';drawWaveform();
 }
+async function seekTo(sec){
+  const dur=trackDuration();if(!dur)return;
+  pauseOffset=Math.max(0,Math.min(isPlaying?dur-0.06:dur,sec));
+  if(isPlaying)await restartPlayback();else _drawFrame();
+  lyricsTick(true);
+}
+let _seekQ=Promise.resolve();   // serialise rapid key-repeat seeks
+function queueSeek(fn){_seekQ=_seekQ.then(fn).catch(console.error)}
+const seekBy=d=>queueSeek(()=>seekTo(currentPos()+d));
 canvas.addEventListener('pointerup',_commitSeek);
 canvas.addEventListener('pointercancel',()=>{_seeking=false});
 
@@ -655,7 +670,7 @@ function renderLyrics(){
   d.scrollTop=0;lyricsTick(true);
 }
 function resetLyrics(){
-  $('lyrics-area').value='';lyrLines=[];lyrSynced=false;setLyricsOffset(0);renderLyrics();setLyricsEditing(false);
+  $('lyrics-area').value='';lyrLines=[];lyrSynced=false;setLyricsOffset(0);renderLyrics();setLyricsEditing(false);closeSyncEditor();
 }
 function setLyricsOffset(ms){lyrOffsetMs=ms;$('lyrics-offset').value=ms;$('lyrics-offset-val').textContent=(ms>0?'+':'')+ms+' ms'}
 function setLyricsEditing(on){$('lyrics-edit').style.display=on?'block':'none';$('edit-lyrics-btn').classList.toggle('active',on);$('edit-lyrics-btn').textContent=on?'Done editing':'Edit lyrics'}
@@ -700,6 +715,97 @@ $('tap-sync-btn').addEventListener('click',()=>{
   ta.value=lines.join('\n');ta.dispatchEvent(new Event('input'));
   $('now-status').textContent=`Synced line ${i+1}: ${lines[i]}`;
 });
+
+/* ---------- Sync editor ---------- */
+const TAP_LAG=0.2;   // seconds of human reaction lag subtracted when stamping
+let edOpen=false,edWriting=false,edLines=[],edMeta=[],edSel=0,edEditing=false;
+const fmtStamp=t=>{const m=Math.floor(t/60);return `${String(m).padStart(2,'0')}:${(t-m*60).toFixed(2).padStart(5,'0')}`};
+function edLoad(){
+  edLines=[];edMeta=[];
+  String($('lyrics-area').value).split(/\r?\n/).forEach(raw=>{
+    const m=LRC_RE.exec(raw);
+    if(m){let t;LRC_TAG.lastIndex=0;while((t=LRC_TAG.exec(m[1])))edLines.push({t:(+t[1])*60+(+t[2])+(t[3]?+('0.'+t[3]):0),text:m[2].trim()})}
+    else if(/^\s*\[[a-z]+:.*\]\s*$/i.test(raw))edMeta.push(raw.trim());
+    else if(raw.trim())edLines.push({t:null,text:raw.trim()});
+  });
+  edSel=Math.min(Math.max(edSel,0),Math.max(0,edLines.length-1));edRender();
+}
+function edSave(){
+  const out=edMeta.concat(edLines.map(l=>l.t==null?l.text:`[${fmtStamp(l.t)}]${l.text}`)).join('\n');
+  const ta=$('lyrics-area');edWriting=true;ta.value=out;ta.dispatchEvent(new Event('input'));edWriting=false;
+}
+function edRender(){
+  const list=$('ed-list');
+  if(!edLines.length){list.innerHTML='<div class="ed-row"><span class="ed-text blank">No lines. Press T to add one, or upload an .lrc.</span></div>';return}
+  list.innerHTML=edLines.map((l,i)=>`<div class="ed-row${i===edSel?' sel':''}" data-i="${i}"><span class="ed-ts${l.t==null?' empty':''}">${l.t==null?'--:--.--':fmtStamp(l.t)}</span><span class="ed-text${l.text?'':' blank'}">${escHtml(l.text)||'(blank)'}</span></div>`).join('');
+  const el=list.children[edSel];if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest'});
+}
+function edSelect(i){edSel=Math.max(0,Math.min(edLines.length-1,i));edRender()}
+function edStartEdit(){
+  const row=$('ed-list').children[edSel];if(!row||!edLines.length)return;
+  const span=row.querySelector('.ed-text'),inp=document.createElement('input');
+  inp.type='text';inp.value=edLines[edSel].text;edEditing=true;
+  let done=false;
+  const finish=ok=>{if(done)return;done=true;edEditing=false;if(ok){edLines[edSel].text=inp.value.trim();edSave()}edRender()};
+  inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();finish(true)}else if(e.key==='Escape'){e.preventDefault();finish(false)}});
+  inp.addEventListener('blur',()=>finish(true));
+  span.replaceWith(inp);inp.focus();inp.select();
+}
+function edInsert(text){
+  edLines.splice(edSel+1,0,{t:null,text});edSel=edSel+1;edSave();edRender();
+}
+function openSyncEditor(){
+  if(edOpen)return;edOpen=true;setLyricsEditing(false);
+  $('sync-editor').style.display='block';$('sync-editor-btn').classList.add('active');edLoad();
+}
+function closeSyncEditor(){
+  edOpen=false;edEditing=false;$('sync-editor').style.display='none';$('sync-editor-btn').classList.remove('active');
+}
+$('sync-editor-btn').addEventListener('click',()=>edOpen?closeSyncEditor():openSyncEditor());
+$('ed-done').addEventListener('click',closeSyncEditor);
+$('edit-lyrics-btn').addEventListener('click',()=>{if(edOpen)closeSyncEditor()});
+$('ed-list').addEventListener('click',e=>{
+  const row=e.target.closest('.ed-row');if(!row||row.dataset.i===undefined||edEditing)return;
+  const i=+row.dataset.i;edSelect(i);
+  if(e.target.classList.contains('ed-ts')&&edLines[i].t!=null){const t=edLines[i].t+lyrOffsetMs/1000;queueSeek(()=>seekTo(t))}
+});
+$('ed-download').addEventListener('click',()=>{
+  const text=$('lyrics-area').value,a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));
+  a.download=(($('now-title').textContent||'lyrics').replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]+/g,'_').trim()||'lyrics')+'.lrc';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+function edKey(e){
+  const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(k==='r'&&!e.repeat){
+    if(!edLines.length)return false;
+    edLines[edSel].t=Math.max(0,currentPos()-lyrOffsetMs/1000-TAP_LAG);
+    edSave();if(edSel<edLines.length-1)edSel++;edRender();
+  }else if(k==='ArrowUp')edSelect(edSel-1);
+  else if(k==='ArrowDown')edSelect(edSel+1);
+  else if(k==='t'&&!e.repeat){edInsert('');edStartEdit()}
+  else if(k==='y'&&!e.repeat)edInsert('');
+  else if(k==='e'&&!e.repeat){e.preventDefault();edStartEdit()}
+  else if(k==='Delete'&&edLines.length){edLines[edSel].t=null;edSave();edRender()}
+  else if((k==='k'||k===' ')&&!e.repeat){if(document.activeElement&&document.activeElement.blur&&document.activeElement.tagName==='BUTTON')document.activeElement.blur();if(!playBtn.disabled)playBtn.click()}
+  else return false;
+  return true;
+}
+
+/* ---------- Global keys (Player tab) ---------- */
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||$('panel-player').hidden)return;
+  const t=e.target,tag=t&&t.tagName;
+  if(tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable))return;
+  if(tag==='INPUT'&&!['range','checkbox','radio','button','file'].includes(t.type))return;
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+    if(!vocalBuffer&&!instBuffer)return;
+    e.preventDefault();seekBy((e.key==='ArrowLeft'?-1:1)*(e.shiftKey?15:5));return;
+  }
+  if(edOpen&&!e.shiftKey&&edKey(e))e.preventDefault();
+});
+// Release slider focus after a drag so arrow keys keep seeking instead of nudging the slider.
+document.addEventListener('pointerup',()=>{const a=document.activeElement;if(a&&a.tagName==='INPUT'&&a.type==='range')a.blur()});
 
 updateSplitAvailability();
 refreshDevices(false);
