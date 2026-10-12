@@ -64,6 +64,14 @@
 <p class="hint">Bluetooth adds roughly 150–300 ms of latency. If the two outputs sound out of sync, add delay to the non-Bluetooth output until they line up.</p><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px"><button id="sync-test-btn" class="icon-btn" style="font-size:.82rem;white-space:nowrap">🔊 Sync test</button><span class="hint" style="margin:0;flex:1">Delay the faster output (usually the wired speaker) until the clicks sound like one.</span></div>
 </div>
 <div id="bt-status"></div>
+<div id="sync-box" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+<div style="font-weight:600;font-size:.92rem">📡 Device sync</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px"><button class="icon-btn" id="sync-host" style="font-size:.85rem">Host room</button><input id="sync-code" maxlength="4" placeholder="CODE" autocomplete="off" style="width:78px;text-transform:uppercase;text-align:center;letter-spacing:.15em;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px"><button class="icon-btn" id="sync-join" style="font-size:.85rem">Join room</button><button class="icon-btn" id="sync-leave" style="font-size:.85rem;display:none">Leave</button></div>
+<div class="hint" id="sync-status">Not in a room.</div>
+<div id="sync-share" style="display:none;margin-top:10px"><div style="font-size:1.6rem;font-weight:700;letter-spacing:.25em" id="sync-code-big"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="icon-btn" id="sync-copy" style="font-size:.85rem">Copy link</button><button class="icon-btn" id="sync-share-btn" style="font-size:.85rem;display:none">Share…</button></div><div id="sync-qr" style="margin-top:10px;display:inline-block;background:#fff;padding:6px;border-radius:8px;line-height:0"></div></div>
+<div class="select-row" style="margin-top:12px"><label for="sync-mix">Device mix</label><select id="sync-mix"><option value="full">Full mix</option><option value="inst">Instrumental only</option><option value="both">Vocals + instrumental</option></select></div>
+<label class="toggle-row" id="sync-same-row" style="display:none"><input type="checkbox" id="sync-same"><span>Same mix on all devices</span></label>
+</div>
 </div></details></div>
 <div class="card" id="lyrics-card"><div class="lyr-head"><h2>Lyrics</h2><button class="icon-btn" id="karaoke-btn" title="Full-screen karaoke mode">⛶ Karaoke mode</button></div>
 <div id="lyrics-display"><div class="lyr-empty">No lyrics yet. Upload an .lrc file or edit lyrics.</div></div>
@@ -80,6 +88,7 @@
 <div id="k-bar"><div class="k-row"><button class="play-btn" id="k-play">▶ Play</button><span class="k-time" id="k-pos">0:00</span><input type="range" id="k-seek" min="0" max="1000" value="0"><span class="k-time" id="k-dur">0:00</span></div>
 <div class="k-row"><label class="k-vol">🎙<input class="vocals-range" type="range" id="k-vocals" min="0" max="100" value="100"></label><label class="k-vol">🎸<input type="range" id="k-inst" min="0" max="100" value="100"></label><span class="k-font"><button class="icon-btn" id="k-fdown" title="Smaller text">A−</button><button class="icon-btn" id="k-fup" title="Larger text">A+</button></span><button class="icon-btn" id="k-fs" title="Toggle fullscreen (F)">⛶</button><button class="icon-btn" id="k-exit" title="Exit (Esc)">✕ Exit</button></div></div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 /* ---------- Config ---------- */
 function readStoredApiUrl(){try{return localStorage.getItem('SEPARATION_API_URL')||''}catch(_){return ''}}
@@ -920,9 +929,239 @@ document.addEventListener('keydown',e=>{
   }
 },true);
 
+/* ---------- Device sync rooms ---------- */
+let syncRole='',syncCode='',syncDevices=0,syncVersion=-1,syncInternal=false,syncMsg='';
+let clockOffset=0,clockRtt=0,lastState=null,guestLoading=false,pendingApply=false,gestured=false;
+let hostTimer=null,hostPending=false,playTimer=null,pollTimer=null,clockTimer=null,driftTimer=null,polling=false,syncWake=null;
+const syncApi=p=>new URL(p,SEPARATION_API_URL).href;
+const serverNow=()=>Date.now()+clockOffset;
+const syncDeviceId=(()=>{let id='';try{id=localStorage.getItem('deviceId')||''}catch(_){}if(!id){id='d'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);try{localStorage.setItem('deviceId',id)}catch(_){}}return id})();
+try{const m=localStorage.getItem('deviceMix');if(m)$('sync-mix').value=m;if(!$('sync-mix').value)$('sync-mix').value='full'}catch(_){}
+function syncRender(){
+  const st=$('sync-status');
+  if(!syncCode){st.textContent=syncMsg||'Not in a room.';$('sync-share').style.display='none';$('sync-leave').style.display='none';$('sync-same-row').style.display='none';return}
+  const off=Math.round(clockOffset);
+  st.textContent=`${syncRole==='host'?'Host':'Guest'} · room ${syncCode} · ${syncDevices} device${syncDevices===1?'':'s'} · clock ${off>=0?'+':''}${off} ms (±${Math.round(clockRtt/2)})`+(syncMsg?' · '+syncMsg:'');
+  $('sync-share').style.display='block';$('sync-leave').style.display='';
+  $('sync-same-row').style.display=syncRole==='host'?'flex':'none';
+}
+function setMixVol(id,v){const s=$(id);s.value=v;s.dispatchEvent(new Event('input'))}
+function applyDeviceMix(same){
+  const mode=same?'full':$('sync-mix').value;
+  if(mode==='full'){setMixVol('vocals-vol',100);setMixVol('inst-vol',100)}
+  else if(mode==='inst'){setMixVol('vocals-vol',0);setMixVol('inst-vol',100)}
+}
+function shareUrl(){return location.origin+location.pathname+'?room='+syncCode}
+function renderQr(){
+  const el=$('sync-qr');el.innerHTML='';
+  try{const q=qrcode(0,'M');q.addData(shareUrl());q.make();el.innerHTML=q.createSvgTag({cellSize:4,margin:0});el.style.display='inline-block'}catch(_){el.style.display='none'}
+}
+async function clockSync(){
+  let best=null;
+  for(let i=0;i<8;i++){
+    try{
+      const t0=Date.now(),r=await fetch(syncApi('/api/time'),{cache:'no-store'}),j=await r.json(),t1=Date.now(),rtt=t1-t0;
+      if(!best||rtt<best.rtt)best={rtt,off:j.t+rtt/2-t1};
+    }catch(_){}
+    await sleep(60);
+  }
+  if(best){clockOffset=best.off;clockRtt=best.rtt}
+  return !!best;
+}
+async function syncWakeOn(){
+  try{
+    if(!navigator.wakeLock||syncWake||!syncCode)return;
+    const w=await navigator.wakeLock.request('screen');
+    if(!syncCode){w.release().catch(()=>{});return}
+    syncWake=w;w.addEventListener('release',()=>{if(syncWake===w)syncWake=null});
+  }catch(_){}
+}
+function syncWakeOff(){try{if(syncWake)syncWake.release().catch(()=>{})}catch(_){}syncWake=null}
+document.addEventListener('visibilitychange',()=>{if(syncCode&&document.visibilityState==='visible')syncWakeOn()});
+['pointerdown','keydown','touchend'].forEach(ev=>document.addEventListener(ev,()=>{
+  gestured=true;
+  if(pendingApply&&lastState){pendingApply=false;syncMsg='';guestApply(lastState)}
+  if(syncCode&&audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{});
+},{passive:true}));
+
+function postRoomState(playing,position,lead){
+  const start_at=Math.round(serverNow()+lead);
+  if(syncRole==='host'&&syncCode){
+    const body={song:currentSha||null,name:$('now-title').textContent==='No song loaded'?'':$('now-title').textContent,playing,position:Math.max(0,position),start_at,mix_mode:$('sync-same').checked?'same':'device'};
+    fetch(syncApi('/api/rooms/'+syncCode+'/state'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).catch(()=>{});
+  }
+  return start_at;
+}
+function hostCommit(pos){
+  clearTimeout(hostTimer);hostPending=true;
+  const t=postRoomState(true,pos,2000);
+  hostTimer=setTimeout(()=>{hostPending=false;syncPlayAt(pos+Math.max(0,(serverNow()-t)/1000)*currentRate())},Math.max(0,t-serverNow()));
+}
+function syncPlayAt(pos){
+  if(isPlaying){queueSeek(()=>seekTo(pos));return}
+  pauseOffset=Math.max(0,pos);syncInternal=true;
+  try{playBtn.click()}finally{syncInternal=false}
+}
+async function guestApply(st){
+  lastState=st;
+  applyDeviceMix(st.mix_mode==='same');
+  if(!gestured){pendingApply=true;syncMsg='tap anywhere to enable audio';syncRender();return}
+  if(guestLoading)return;
+  if(st.song&&st.song!==currentSha){
+    guestLoading=true;
+    try{await _loadFromLibraryOrig(st.song,st.name||'Shared song',0)}finally{guestLoading=false}
+    return guestApply(lastState);
+  }
+  if(!vocalBuffer&&!instBuffer)return;
+  clearTimeout(playTimer);
+  if(!st.playing){pauseOffset=st.position;stopPlayback();return}
+  const delta=st.start_at-serverNow();
+  if(delta>0){
+    if(isPlaying)stopPlayback();
+    pauseOffset=st.position;
+    playTimer=setTimeout(()=>syncPlayAt(st.position+Math.max(0,(serverNow()-st.start_at)/1000)*currentRate()),delta);
+    return;
+  }
+  const expected=st.position+(-delta/1000)*currentRate();
+  if(expected>=trackDuration())return;
+  if(isPlaying&&Math.abs(currentPos()-expected)<0.15)return;
+  syncPlayAt(expected+0.08);
+}
+async function roomPoll(){
+  const code=syncCode;if(!code||polling)return;polling=true;
+  try{
+    const r=await fetch(syncApi('/api/rooms/'+code+'?id='+encodeURIComponent(syncDeviceId)),{cache:'no-store'});
+    if(code!==syncCode)return;
+    if(r.status===404){syncLeave('Room closed or expired.');return}
+    if(!r.ok)throw new Error('poll');
+    const d=await r.json();
+    if(code!==syncCode)return;
+    syncDevices=d.devices;if(syncMsg==='connection lost, retrying…')syncMsg='';
+    if(syncRole==='guest'&&d.state.version!==syncVersion){syncVersion=d.state.version;guestApply(d.state)}
+    else if(syncRole==='guest')lastState=d.state;
+  }catch(_){syncMsg='connection lost, retrying…'}
+  finally{polling=false;syncRender()}
+}
+function syncStart(role,code){
+  syncRole=role;syncCode=code;syncDevices=1;syncVersion=-1;lastState=null;syncMsg='';
+  $('sync-code-big').textContent=code;renderQr();syncWakeOn();
+  clearInterval(pollTimer);pollTimer=setInterval(roomPoll,1000);
+  clearInterval(clockTimer);clockTimer=setInterval(clockSync,30000);
+  clearInterval(driftTimer);
+  driftTimer=setInterval(()=>{
+    const st=lastState;
+    if(syncRole!=='guest'||!st||!st.playing||!isPlaying||serverNow()<st.start_at)return;
+    const exp=st.position+(serverNow()-st.start_at)/1000*currentRate();
+    if(exp>=trackDuration())return;
+    if(Math.abs(currentPos()-exp)>0.15)queueSeek(()=>seekTo(exp+0.08));
+  },5000);
+  switchTab('player');$('output-settings').open=true;
+  syncRender();roomPoll();
+}
+function syncLeave(msg){
+  clearInterval(pollTimer);clearInterval(clockTimer);clearInterval(driftTimer);clearTimeout(hostTimer);clearTimeout(playTimer);
+  hostPending=false;pendingApply=false;syncRole='';syncCode='';syncWakeOff();$('sync-same').checked=false;
+  syncMsg=typeof msg==='string'?msg:'';syncRender();
+}
+async function hostRoom(){
+  if(syncCode)return;
+  if(!SEPARATION_API_URL){syncMsg='no API configured';syncRender();return}
+  syncMsg='creating room…';syncRender();
+  try{
+    const r=await fetch(syncApi('/api/rooms'),{method:'POST'});
+    if(!r.ok)throw new Error(r.status===503?'too many rooms, try later':'could not create room');
+    const d=await r.json();
+    await clockSync();
+    syncStart('host',d.code);applyDeviceMix(false);
+    if(currentSha)postRoomState(false,pauseOffset,2000);
+  }catch(err){syncMsg=err.message||'could not create room';syncRender()}
+}
+async function joinRoom(code){
+  if(syncCode)return;
+  code=String(code||'').toUpperCase();
+  if(!/^[A-Z]{4}$/.test(code)){syncMsg='enter a 4-letter code';syncRender();return}
+  if(!SEPARATION_API_URL){syncMsg='no API configured';syncRender();return}
+  syncMsg='joining…';syncRender();
+  try{
+    const r=await fetch(syncApi('/api/rooms/'+code+'?id='+encodeURIComponent(syncDeviceId)),{cache:'no-store'});
+    if(r.status===404)throw new Error('room not found');
+    if(!r.ok)throw new Error('could not join');
+    await clockSync();
+    syncStart('guest',code);
+  }catch(err){syncMsg=err.message||'could not join';syncRender()}
+}
+$('sync-host').addEventListener('click',hostRoom);
+$('sync-join').addEventListener('click',()=>joinRoom($('sync-code').value));
+$('sync-code').addEventListener('input',function(){this.value=this.value.replace(/[^a-zA-Z]/g,'').toUpperCase()});
+$('sync-code').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom($('sync-code').value)});
+$('sync-leave').addEventListener('click',()=>syncLeave());
+$('sync-copy').addEventListener('click',async function(){
+  try{await navigator.clipboard.writeText(shareUrl());this.textContent='Copied!'}catch(_){window.prompt('Copy this link',shareUrl())}
+  setTimeout(()=>{this.textContent='Copy link'},1500);
+});
+if(navigator.share){
+  $('sync-share-btn').style.display='';
+  $('sync-share-btn').addEventListener('click',()=>{try{navigator.share({title:'Karaoke Mixer',text:'Join my karaoke room '+syncCode,url:shareUrl()}).catch(()=>{})}catch(_){}});
+}
+$('sync-mix').addEventListener('change',function(){
+  try{localStorage.setItem('deviceMix',this.value)}catch(_){}
+  applyDeviceMix(syncRole==='host'?$('sync-same').checked:lastState?.mix_mode==='same');
+});
+$('sync-same').addEventListener('change',()=>{
+  applyDeviceMix($('sync-same').checked);
+  if(syncRole==='host')postRoomState(isPlaying,isPlaying?currentPos():pauseOffset,0);
+});
+// Host: intercept transport controls so every device starts together at start_at.
+playBtn.addEventListener('click',e=>{
+  if(syncInternal||!syncCode)return;
+  if(syncRole==='guest'){e.stopImmediatePropagation();return}
+  if(isPlaying||hostPending){
+    clearTimeout(hostTimer);const pending=hostPending&&!isPlaying;hostPending=false;
+    postRoomState(false,isPlaying?currentPos():pauseOffset,2000);
+    if(pending)e.stopImmediatePropagation();
+    return;
+  }
+  if(!vocalBuffer&&!instBuffer)return;
+  e.stopImmediatePropagation();
+  hostCommit(pauseOffset>=trackDuration()-0.05?0:pauseOffset);
+},true);
+stopBtn.addEventListener('click',e=>{
+  if(!syncCode)return;
+  if(syncRole==='guest'){e.stopImmediatePropagation();return}
+  clearTimeout(hostTimer);hostPending=false;postRoomState(false,0,2000);
+},true);
+const _seekToOrig=seekTo;
+seekTo=async function(sec){
+  if(syncRole!=='host')return _seekToOrig(sec);
+  const dur=trackDuration();if(!dur)return;
+  const busy=isPlaying||hostPending;
+  clearTimeout(hostTimer);hostPending=false;
+  if(busy){
+    stopPlayback();pauseOffset=Math.max(0,Math.min(dur-0.06,sec));lyricsTick(true);hostCommit(pauseOffset);
+  }else{await _seekToOrig(sec);postRoomState(false,pauseOffset,2000)}
+};
+canvas.addEventListener('pointerup',e=>{
+  if(syncRole!=='host'||!_seeking)return;
+  e.stopImmediatePropagation();_seeking=false;
+  const pos=pauseOffset,was=isPlaying;
+  if(was){stopPlayback();hostCommit(pos)}else{_drawFrame();postRoomState(false,pos,2000)}
+},true);
+canvas.addEventListener('pointerdown',e=>{if(syncRole==='guest')e.stopImmediatePropagation()},true);
+const _loadFromLibraryOrig=loadFromLibrary;
+loadFromLibrary=async function(sha256,name,size){
+  if(syncRole==='guest')return;
+  if(syncRole==='host'){
+    clearTimeout(hostTimer);hostPending=false;
+    currentSha=sha256;$('now-title').textContent=name;
+    postRoomState(false,0,2000);
+  }
+  return _loadFromLibraryOrig(sha256,name,size);
+};
+
 updateSplitAvailability();
 refreshDevices(false);
 loadLibrary();
+{const rc=new URLSearchParams(location.search).get('room');if(rc&&/^[A-Za-z]{4}$/.test(rc))joinRoom(rc)}
 </script>
 </body>
 </html>
