@@ -320,7 +320,7 @@ async function separateStems(file,audioBuffer,token,sha256){
     if(sha256){
       setProgress(0,'Checking cache…','Looking up previous separation');
       try{
-        const cacheRes=await fetch(new URL('/api/cache/'+sha256,SEPARATION_API_URL).href,{cache:'no-store'});
+        const cacheRes=await fetch(new URL('/api/cache/'+sha256+'?name='+encodeURIComponent(file.name)+'&size='+file.size,SEPARATION_API_URL).href,{cache:'no-store'});
         if(cacheRes.ok){const cached=await cacheRes.json();if(cached.hit){setProgress(75,'Downloading cached stems…','Found in cache');[vocalBuffer,instBuffer]=await downloadStems(cached,token);separated=true;setProgress(100,'Separation complete','✓ Loaded from cache.','success');applyMixerMode();showImportDone(true);loadLibrary();return;}}
       }catch(_){}
     }

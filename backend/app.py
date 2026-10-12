@@ -374,7 +374,7 @@ def health() -> dict[str, Any]:
 
 
 @app.get("/api/cache/{sha256}")
-def cache_lookup(sha256: str) -> dict[str, Any]:
+def cache_lookup(sha256: str, name: str = "", size: int = 0) -> dict[str, Any]:
     if not SHA256_RE.match(sha256):
         raise HTTPException(status_code=400, detail="Invalid sha256")
     cache_dir = CACHE_ROOT / sha256
@@ -385,6 +385,16 @@ def cache_lookup(sha256: str) -> dict[str, Any]:
         cache_dir.touch()  # refresh mtime so LRU eviction keeps hot entries
     except OSError:
         pass
+    meta_path = cache_dir / "meta.json"
+    if not meta_path.exists():
+        # Backfill meta for entries cached before the library feature existed.
+        clean = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()[:200]
+        try:
+            meta_path.write_text(
+                json.dumps({"name": clean, "size": max(0, size), "created": time.time()})
+            )
+        except OSError:
+            log.exception("Failed to backfill meta for %s", sha256)
     ext = stems["vocals"].suffix.lstrip(".")
     return {
         "hit": True,
@@ -420,10 +430,21 @@ def library_list() -> list[dict]:
         if not entry.is_dir() or not SHA256_RE.match(entry.name):
             continue
         meta_path = entry / "meta.json"
-        if not meta_path.exists():
-            continue
         stems = find_stems(entry)
         if "vocals" not in stems or "instrumental" not in stems:
+            continue
+        if not meta_path.exists():
+            try:
+                songs.append(
+                    {
+                        "sha256": entry.name,
+                        "name": f"Unnamed song ({entry.name[:8]})",
+                        "size": sum(p.stat().st_size for p in stems.values()),
+                        "created": entry.stat().st_mtime,
+                    }
+                )
+            except OSError:
+                pass
             continue
         try:
             meta = json.loads(meta_path.read_text())
