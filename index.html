@@ -122,22 +122,23 @@ function currentPos(){
 }
 
 /* ---------- Visualiser ---------- */
+function _drawFrame(){
+  if(!analyser)return;
+  const W=canvas.width||640,H=canvas.height||120,d=new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(d);ctx2d.clearRect(0,0,W,H);
+  const bw=W/d.length*2.5;
+  for(let i=0;i<d.length;i++){
+    const h=d[i]/255*H,t=i/d.length;
+    ctx2d.fillStyle=`rgb(${Math.round(76+148*t)},${Math.round(110-28*t)},${Math.round(245-163*t)})`;
+    ctx2d.fillRect(i*bw,H-h,Math.max(1,bw-1),h);
+  }
+  const dur=trackDuration();
+  if(dur>0){const px=(currentPos()/dur)*W;ctx2d.fillStyle='rgba(255,255,255,0.85)';ctx2d.fillRect(Math.round(px),0,2,H)}
+  if(isPlaying)waveTime.textContent=`${formatTime(currentPos())} / ${formatTime(trackDuration())}`;
+}
 function drawWaveform(){
   if(!analyser)return;cancelAnimationFrame(animFrame);
-  const render=()=>{
-    animFrame=requestAnimationFrame(render);
-    const W=canvas.width||640,H=canvas.height||120,d=new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(d);ctx2d.clearRect(0,0,W,H);
-    const bw=W/d.length*2.5;
-    for(let i=0;i<d.length;i++){
-      const h=d[i]/255*H,t=i/d.length;
-      ctx2d.fillStyle=`rgb(${Math.round(76+148*t)},${Math.round(110-28*t)},${Math.round(245-163*t)})`;
-      ctx2d.fillRect(i*bw,H-h,Math.max(1,bw-1),h);
-    }
-    const dur=trackDuration();
-    if(dur>0){const px=(currentPos()/dur)*W;ctx2d.fillStyle='rgba(255,255,255,0.85)';ctx2d.fillRect(Math.round(px),0,2,H)}
-    if(isPlaying)waveTime.textContent=`${formatTime(currentPos())} / ${formatTime(trackDuration())}`;
-  };
+  const render=()=>{animFrame=requestAnimationFrame(render);_drawFrame()};
   render();
 }
 
@@ -343,7 +344,7 @@ function connectStem(buffer,gain){
 function stopPlayback(){
   if(vocalSource){try{vocalSource.stop()}catch(_){}vocalSource=null}
   if(instSource){try{instSource.stop()}catch(_){}instSource=null}
-  isPlaying=false;playBtn.textContent='▶ Play';cancelAnimationFrame(animFrame);
+  isPlaying=false;playBtn.textContent='▶ Play';cancelAnimationFrame(animFrame);_drawFrame();
 }
 function applyRate(src){src.detune.value=(+$('pitch').value)*100;src.playbackRate.value=+$('tempo').value}
 playBtn.addEventListener('click',async()=>{
@@ -414,15 +415,17 @@ canvas.addEventListener('pointerdown',e=>{
   _seeking=true;canvas.setPointerCapture(e.pointerId);
   pauseOffset=_seekFrac(e)*trackDuration();
   waveTime.textContent=`${formatTime(pauseOffset)} / ${formatTime(trackDuration())}`;
+  if(!isPlaying)_drawFrame();
 });
 canvas.addEventListener('pointermove',e=>{
   if(!_seeking)return;
   pauseOffset=_seekFrac(e)*trackDuration();
   waveTime.textContent=`${formatTime(pauseOffset)} / ${formatTime(trackDuration())}`;
+  if(!isPlaying)_drawFrame();
 });
 async function _commitSeek(){
   if(!_seeking)return;_seeking=false;
-  if(!isPlaying)return;
+  if(!isPlaying){_drawFrame();return}
   const ac=getAudioCtx();if(ac.state==='suspended')await ac.resume();
   stopSyncTest();
   const wasPlaying=isPlaying;stopPlayback();
